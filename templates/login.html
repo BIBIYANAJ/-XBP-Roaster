@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Work Schedule</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            margin: 0; 
+        }
+        .login-container { 
+            background-color: #ffffff; 
+            padding: 40px; 
+            border-radius: 12px; 
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2); 
+            width: 350px; 
+        }
+        h2 { 
+            text-align: center; 
+            color: #333;
+            margin-bottom: 30px;
+        }
+        label { 
+            display: block; 
+            margin-bottom: 5px; 
+            color: #555;
+            font-weight: bold;
+        }
+        input[type="email"], 
+        input[type="password"] { 
+            width: calc(100% - 20px); 
+            padding: 12px; 
+            margin-bottom: 20px; 
+            border: 1px solid #ddd; 
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        input[type="email"]:focus,
+        input[type="password"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        button { 
+            background-color: #667eea; 
+            color: white; 
+            padding: 12px 20px; 
+            border: none; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            width: 100%; 
+            font-size: 16px; 
+            font-weight: bold;
+            transition: background-color 0.3s; 
+        }
+        button:hover { 
+            background-color: #5568d3; 
+        }
+        .error { 
+            color: #F44336; 
+            text-align: center; 
+            margin-bottom: 15px;
+            background-color: #ffebee;
+            padding: 10px;
+            border-radius: 6px;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <h2>🗓️ Shift Roster Login</h2>
+        {% if error %}
+            <div class="error">{{ error }}</div>
+        {% endif %}
+        <form action="{{ url_for('login') }}" method="post">
+            <label for="email">Email:</label>
+            <input type="email" id="email" name="email" required>
+            <button type="submit">Log In</button>
+        </form>
+    </div>
+</body>
+</html>

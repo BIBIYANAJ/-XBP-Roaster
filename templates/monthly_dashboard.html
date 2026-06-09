@@ -1,0 +1,318 @@
+<!-- templates/monthly_dashboard.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>[COMPANY]'S MONTHLY WORK SCHEDULE</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>
+        <h1>[COMPANY]'S MONTHLY WORK SCHEDULE</h1>
+        <nav>
+            <a href="{{ url_for('logout') }}" class="button">Logout</a>
+        </nav>
+    </header>
+
+    <main>
+        <!-- Team Selector -->
+        <div class="controls">
+            <label for="team-select">Select Team:</label>
+            <select id="team-select" onchange="window.location.href='/monthly_schedule?team_id=' + this.value">
+                <option value="">-- Select Team --</option>
+                {% for team in teams %}
+                    <option value="{{ team.id }}" {% if current_team and team.id == current_team.id %}selected{% endif %}>
+                        {{ team.name }}
+                    </option>
+                {% endfor %}
+            </select>
+            <button onclick="sendSchedules()">Email Schedule</button>
+        </div>
+
+        {% if current_team %}
+        <!-- Monthly Calendar Navigation -->
+        <div class="calendar-nav">
+            <a href="{{ url_for('monthly_schedule', date=prev_month.strftime('%Y-%m-%d'), team_id=current_team.id) }}" class="button">&lt; Prev Month</a>
+            <h2>{{ current_date.strftime('%B %Y') }}</h2>
+            <a href="{{ url_for('monthly_schedule', date=next_month.strftime('%Y-%m-%d'), team_id=current_team.id) }}" class="button">Next Month &gt;</a>
+        </div>
+
+        <!-- NEW: Shift Assignment Controls for fast mode (Constraint 3 & 7) -->
+        <div class="shift-selector-bar">
+            <span>Quick Assign:</span>
+            <button class="shift-button shift-M" data-shift="M">Morning</button>
+            <button class="shift-button shift-A" data-shift="A">Afternoon</button>
+            <button class="shift-button shift-N" data-shift="N">Night</button>
+            <button class="shift-button shift-O" data-shift="O">OFF</button>
+        </div>
+
+        <!-- Monthly Calendar Grid (Constraint 2) -->
+        <div class="calendar-grid">
+            <div class="day-header">MON</div>
+            <div class="day-header">TUE</div>
+            <div class="day-header">WED</div>
+            <div class="day-header">THU</div>
+            <div class="day-header">FRI</div>
+            <div class="day-header day-weekend">SAT</div>
+            <div class="day-header day-weekend">SUN</div>
+
+            {% for date in calendar_dates %}
+                {% set shifts_on_day = schedule_data.get(date.strftime('%Y-%m-%d'), {}) %}
+                <div class="calendar-day {% if date.month != current_date.month %}other-month{% endif %}"
+                     data-date="{{ date.strftime('%Y-%m-%d') }}"
+                     onclick="handleDayClick(this)"> <!-- Updated function call -->
+                    <div class="day-number">{{ date.day }}</div>
+                    <div class="day-shift-summary">
+                        {% for employee_id, shift_type in shifts_on_day.items() %}
+                            {% for emp in employees %}
+                                {% if emp.id == employee_id %}
+                                    <span class="shift-{{ shift_type }}">{{ emp.name.split(' ')[0] }} ({{ shift_type }})</span>
+                                {% endif %}
+                            {% endfor %}
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p>Please select a team to view the schedule.</p>
+        {% endif %}
+    </main>
+
+    <!-- Shift Assignment Modal (for fine-grained editing) -->
+    <div id="shiftModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeShiftModal()">&times;</span>
+            <h3>Assign Shifts for: <span id="modalDateDisplay"></span></h3>
+            <div class="shift-selection-container">
+                <p>Select a shift type for each employee below:</p>
+                <!-- Quick select buttons here for use inside modal (optional, but keep for consistency) -->
+                <button class="modal-shift-button shift-M" data-shift="M">Morning</button>
+                <button class="modal-shift-button shift-A" data-shift="A">Afternoon</button>
+                <button class="modal-shift-button shift-N" data-shift="N">Night</button>
+                <button class="modal-shift-button shift-O" data-shift="O">OFF</button>
+            </div>
+            <table class="shift-assignment-table">
+                <thead>
+                    <tr>
+                        <th>Employee</th>
+                        <th>Shift Type</th>
+                    </tr>
+                </thead>
+                <tbody id="modalEmployeeList">
+                    <!-- Employee rows will be dynamically inserted here by JS -->
+                </tbody>
+            </table>
+            <button onclick="saveModalChanges()" class="button save-button">Save Changes</button>
+        </div>
+    </div>
+
+    <!-- Notification system -->
+    <div id="notification-bar" class="notification-bar"></div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const shiftButtons = document.querySelectorAll('.shift-button');
+            const modalShiftButtons = document.querySelectorAll('.modal-shift-button');
+            const shiftModal = document.getElementById('shiftModal');
+            let currentSelectedDate = null;
+            let currentEmployeeShifts = {}; // Store current state for comparison
+            let selectedShiftType = null; // New state variable for fast assignment mode
+
+            // --- Shift Selector Logic for fast mode (outside modal) ---
+            shiftButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    // Reset selected state visually
+                    shiftButtons.forEach(btn => btn.classList.remove('active'));
+                    // Set new state
+                    selectedShiftType = button.dataset.shift;
+                    button.classList.add('active');
+                    showNotification(`Fast assign mode enabled: Click days to apply '${selectedShiftType}' shift.`, 'info');
+                });
+            });
+
+            // --- Shift Selector Logic inside modal (for quick selection) ---
+            modalShiftButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const selectedShiftTypeInModal = button.dataset.shift;
+                    document.querySelectorAll('#modalEmployeeList select').forEach(select => {
+                        select.value = selectedShiftTypeInModal;
+                    });
+                });
+            });
+
+            // --- New click handler for calendar days ---
+            // admin_dashboard.html (in the script tag at the bottom)
+
+// ... existing code ...
+
+// --- Day Cell Click Handler (Constraint 4 & 6) ---
+// This function determines whether to fast-assign or open modal
+        window.handleDayClick = function(element) {
+            const dateStr = element.dataset.date;
+
+            if (selectedShiftType) {
+                // Fast assignment mode: Assign selected shift to all employees on this day
+                fastAssignShift(dateStr, selectedShiftType);
+            } else {
+                // Normal mode: Open modal for detailed editing
+                openShiftModal(element);
+            }
+        }
+
+        // --- Fast Assignment Logic (New) ---
+        // Assigns the selected shift to all employees for the clicked day.
+        function fastAssignShift(dateStr, shiftType) {
+            const employees = JSON.parse('{{ employees | tojson | safe }}');
+            let updates = [];
+
+            // Prepare updates for all employees on this day
+            employees.forEach(employee => {
+                updates.push({ employee_id: employee.id, date: dateStr, shift_type: shiftType });
+            });
+
+            if (updates.length > 0) {
+                showNotification(`Applying ${shiftType} shift to all employees for ${dateStr}...`, 'info');
+                // Process updates sequentially to check rules on each one
+                processSequentialUpdates(updates);
+            }
+        }
+
+        // --- Open Modal (for fine-grained editing) ---
+        window.openShiftModal = function(element) {
+            const dateStr = element.dataset.date;
+            currentSelectedDate = dateStr;
+            document.getElementById('modalDateDisplay').textContent = dateStr;
+
+            const modalEmployeeList = document.getElementById('modalEmployeeList');
+            modalEmployeeList.innerHTML = '';
+
+            const employees = JSON.parse('{{ employees | tojson | safe }}');
+            const currentSchedule = JSON.parse('{{ schedule_data | tojson | safe }}');
+            const shiftsForDate = currentSchedule[dateStr] || {};
+            currentEmployeeShifts = {};
+
+            employees.forEach(employee => {
+                const row = document.createElement('tr');
+                const shiftType = shiftsForDate[employee.id] || 'O';
+                currentEmployeeShifts[employee.id] = shiftType;
+
+                row.innerHTML = `
+                    <td>${employee.name}</td>
+                    <td>
+                        <select id="select-${employee.id}" data-employee-id="${employee.id}" class="shift-select">
+                            <option value="O" ${shiftType === 'O' ? 'selected' : ''}>OFF</option>
+                            <option value="M" ${shiftType === 'M' ? 'selected' : ''}>Morning</option>
+                            <option value="A" ${shiftType === 'A' ? 'selected' : ''}>Afternoon</option>
+                            <option value="N" ${shiftType === 'N' ? 'selected' : ''}>Night</option>
+                        </select>
+                    </td>
+                `;
+                modalEmployeeList.appendChild(row);
+            });
+
+            shiftModal.style.display = "block";
+        }
+
+// ... rest of saveModalChanges, processSequentialUpdates, closeShiftModal, showNotification functions ...
+
+            // --- Save Modal Changes ---
+            window.saveModalChanges = function() {
+                const selectElements = document.querySelectorAll('#modalEmployeeList select');
+                const dateStr = currentSelectedDate;
+                let updates = [];
+
+                selectElements.forEach(select => {
+                    const employeeId = select.dataset.employeeId;
+                    const newShiftType = select.value;
+                    const currentShiftType = currentEmployeeShifts[employeeId];
+
+                    if (newShiftType !== currentShiftType) {
+                        updates.push({ employee_id: employeeId, date: dateStr, shift_type: newShiftType });
+                    }
+                });
+
+                if (updates.length > 0) {
+                    processSequentialUpdates(updates);
+                } else {
+                    showNotification('No changes made.', 'info');
+                    closeShiftModal();
+                }
+            }
+
+            // --- Sequential Update Logic (to handle multiple changes and validation) ---
+            function processSequentialUpdates(updates) {
+                const notificationBar = document.getElementById('notification-bar');
+                let successfulUpdates = 0;
+
+                function performUpdate(update) {
+                    return fetch('{{ url_for("update_shift") }}', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(update)
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            successfulUpdates++;
+                        } else if (data.status === 'warning') {
+                            showNotification(`Warning: ${update.employee_id} - ${data.message}`, 'warning');
+                        } else {
+                            showNotification(`Error: ${update.employee_id} - ${data.message}`, 'error');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showNotification('An unexpected error occurred.', 'error');
+                    });
+                }
+
+                async function iterateUpdates() {
+                    for (const update of updates) {
+                        await performUpdate(update);
+                    }
+                    if (successfulUpdates > 0) {
+                        showNotification(`Successfully updated ${successfulUpdates} shifts.`, 'success');
+                    }
+                    setTimeout(() => {
+                        closeShiftModal();
+                        window.location.reload(); // Reload to reflect changes on calendar
+                    }, 1000);
+                }
+                iterateUpdates();
+            }
+
+            // --- Modal Control Functions ---
+            window.closeShiftModal = function() {
+                shiftModal.style.display = "none";
+                selectedShiftType = null; // Exit fast assignment mode
+                document.querySelectorAll('.shift-button').forEach(btn => btn.classList.remove('active'));
+            }
+
+            // --- Notification Popup Logic ---
+            window.showNotification = function(message, type) {
+                notificationBar.textContent = message;
+                notificationBar.className = `notification-bar ${type}`;
+                setTimeout(() => {
+                    notificationBar.className = 'notification-bar';
+                }, 3000);
+            }
+        });
+
+        // --- Email Schedule Button (Constraint 6) ---
+        function sendSchedules() {
+            if (confirm('Are you sure you want to send the schedule emails to all employees?')) {
+                fetch('{{ url_for("send_schedules") }}', { method: 'POST' })
+                    .then(response => response.json())
+                    .then(data => {
+                        alert(data.message);
+                    })
+                    .catch(error => {
+                        alert('Error sending emails.');
+                    });
+            }
+        }
+    </script>
+</body>
+</html>

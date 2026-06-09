@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Schedule</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>
+        <h1>My Work Schedule</h1>
+        <nav>
+            <a href="{{ url_for('employee_calendar', employee_id=employee.id) }}" class="button">View Full Calendar</a>
+            <a href="{{ url_for('logout') }}" class="button">Logout</a>
+        </nav>
+    </header>
+
+    <main>
+        <h2>Welcome, {{ employee.name }}!</h2>
+        <p style="color: #666;">Here's your schedule for this week</p>
+
+        <table class="roster-table" style="max-width: 800px; margin: 20px auto;">
+            <thead>
+                <tr>
+                    <th>Day</th>
+                    <th>Date</th>
+                    <th>Shift</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for date in dates %}
+                    {% set shift_type = schedule_data.get(date, 'O') %}
+                    <tr>
+                        <td style="font-weight: bold;">{{ date.strftime('%A') }}</td>
+                        <td>{{ date.strftime('%B %d, %Y') }}</td>
+                        <td>
+                            <div class="shift-label shift-{{ shift_type }}">
+                                {% if shift_type == 'M' %}Morning
+                                {% elif shift_type == 'A' %}Afternoon
+                                {% elif shift_type == 'N' %}Night
+                                {% elif shift_type == 'L' %}Leave
+                                {% else %}OFF
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Color Legend -->
+        <div style="background-color: white; padding: 15px; border-radius: 8px; margin-top: 30px; max-width: 800px; margin-left: auto; margin-right: auto;">
+            <h4 style="margin-top: 0;">Shift Types:</h4>
+            <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center;">
+                    <span class="shift-label shift-M" style="width: 30px; height: 30px; margin-right: 5px;">M</span>
+                    <span>Morning</span>
+                </div>
+                <div style="display: flex; align-items: center;">
+                    <span class="shift-label shift-A" style="width: 30px; height: 30px; margin-right: 5px;">A</span>
+                    <span>Afternoon</span>
+                </div>
+                <div style="display: flex; align-items: center;">
+                    <span class="shift-label shift-N" style="width: 30px; height: 30px; margin-right: 5px;">N</span>
+                    <span>Night</span>
+                </div>
+                <div style="display: flex; align-items: center;">
+                    <span class="shift-label shift-L" style="width: 30px; height: 30px; margin-right: 5px;">L</span>
+                    <span>Leave</span>
+                </div>
+                <div style="display: flex; align-items: center;">
+                    <span class="shift-label shift-O" style="width: 30px; height: 30px; margin-right: 5px;">O</span>
+                    <span>OFF</span>
+                </div>
+            </div>
+        </div>
+
+        <div style="text-align: center; margin-top: 30px;">
+            <a href="{{ url_for('employee_calendar', employee_id=employee.id) }}" class="button">View Full Monthly Calendar</a>
+        </div>
+    </main>
+</body>
+</html>

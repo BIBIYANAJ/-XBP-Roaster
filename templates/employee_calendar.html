@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ employee.name }} - Work Schedule</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .picker-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.45);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .picker-overlay.open { display: flex; }
+        .picker-box {
+            background: #fff;
+            border-radius: 12px;
+            padding: 24px;
+            width: 340px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.28);
+        }
+        .picker-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+        }
+        .picker-month-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .picker-month-nav button {
+            background: #4c66a4;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            padding: 4px 12px;
+            cursor: pointer;
+            font-size: 1em;
+        }
+        .picker-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 3px;
+        }
+        .picker-day-hdr {
+            text-align: center;
+            font-size: 0.72em;
+            font-weight: 700;
+            color: #888;
+            padding: 4px 0;
+        }
+        .picker-day {
+            text-align: center;
+            padding: 7px 2px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: background 0.12s;
+            user-select: none;
+        }
+        .picker-day:hover { background: #e8f0fe; }
+        .picker-day.p-selected { background: #1a237e; color: #fff; }
+        .picker-day.p-empty { cursor: default; }
+        .picker-day.p-other { color: #ccc; cursor: default; }
+        .picker-footer {
+            margin-top: 14px;
+            display: flex;
+            gap: 8px;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .picker-sel-info {
+            font-size: 0.88em;
+            color: #555;
+            font-weight: bold;
+        }
+        .picker-actions { display: flex; gap: 8px; }
+        .picker-actions button {
+            border: none;
+            border-radius: 4px;
+            padding: 7px 14px;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+        .btn-clear-picker { background: #6c757d; color: #fff; }
+        .btn-done-picker  { background: #4c66a4; color: #fff; }
+        .btn-open-picker  {
+            background: #4c66a4;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            padding: 7px 14px;
+            cursor: pointer;
+            font-size: 0.9em;
+            white-space: nowrap;
+        }
+        .month-jump {
+            padding: 6px 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 0.95em;
+        }
+
+        /* ── Templates Panel ───────────────────────────────────── */
+        .tpl-toggle-btn {
+            background: linear-gradient(135deg, #6e40c9, #8250df);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 7px 16px;
+            font-size: 0.88em;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            box-shadow: 0 2px 8px rgba(130,80,223,0.25);
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .tpl-toggle-btn:hover { box-shadow: 0 4px 14px rgba(130,80,223,0.4); transform: translateY(-1px); }
+
+        .tpl-panel {
+            display: none;
+            background: #fff;
+            border: 1px solid #d0d7de;
+            border-radius: 12px;
+            margin-bottom: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 16px rgba(31,35,40,0.08);
+            animation: tplSlide 0.22s ease;
+        }
+        .tpl-panel.open { display: block; }
+        @keyframes tplSlide {
+            from { opacity: 0; transform: translateY(-8px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .tpl-panel-hdr {
+            background: linear-gradient(135deg, #6e40c9, #8250df);
+            color: #fff;
+            padding: 12px 18px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-weight: 600;
+            font-size: 0.95em;
+        }
+        .tpl-panel-hdr button {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            border-radius: 6px;
+            color: #fff;
+            width: 26px; height: 26px;
+            cursor: pointer;
+            font-size: 1.1em;
+            display: flex; align-items: center; justify-content: center;
+            transition: background 0.2s;
+        }
+        .tpl-panel-hdr button:hover { background: rgba(255,255,255,0.35); }
+
+        .tpl-body {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0;
+        }
+        @media (max-width: 700px) { .tpl-body { grid-template-columns: 1fr; } }
+
+        .tpl-left {
+            padding: 16px 18px;
+            border-right: 1px solid #d0d7de;
+        }
+        .tpl-right {
+            padding: 16px 18px;
+            background: #f6f8fa;
+        }
+        .tpl-section-title {
+            font-size: 0.78em;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: #656d76;
+            margin-bottom: 10px;
+        }
+
+        .tpl-list { display: flex; flex-direction: column; gap: 8px; max-height: 280px; overflow-y: auto; }
+        .tpl-item {
+            background: #f6f8fa;
+            border: 1px solid #d0d7de;
+            border-radius: 8px;
+            padding: 10px 12px;
+            transition: border-color 0.2s;
+        }
+        .tpl-item:hover { border-color: #8250df; }
+        .tpl-item-name { font-weight: 600; font-size: 0.88em; color: #1f2328; margin-bottom: 6px; }
+        .tpl-pattern {
+            display: flex; gap: 3px; flex-wrap: wrap; margin-bottom: 8px;
+        }
+        .tpl-dot {
+            padding: 2px 6px; border-radius: 4px;
+            font-size: 0.7em; font-weight: 700; color: #fff;
+            display: inline-flex; align-items: center; gap: 2px;
+        }
+        .tpl-dot-empty { background: #d0d7de; color: #8c959f; }
+        .tpl-dot-M { background: #d4a72c; }
+        .tpl-dot-A { background: #d15704; }
+        .tpl-dot-N { background: #1f6feb; }
+        .tpl-dot-O { background: #1a7f37; }
+        .tpl-dot-L { background: #cf222e; }
+        .tpl-dot-G { background: #8250df; }
+
+        .tpl-item-actions { display: flex; gap: 6px; align-items: center; }
+        .tpl-apply-btn {
+            flex: 1;
+            padding: 5px 10px;
+            background: linear-gradient(135deg,#1a7f37,#2da44e);
+            color: #fff; border: none; border-radius: 6px;
+            font-size: 0.78em; font-weight: 600; cursor: pointer;
+            transition: all 0.2s;
+        }
+        .tpl-apply-btn:hover { box-shadow: 0 3px 10px rgba(26,127,55,0.3); }
+        .tpl-del-btn {
+            padding: 5px 8px;
+            background: transparent;
+            border: 1px solid #d0d7de;
+            border-radius: 6px; color: #8c959f;
+            font-size: 0.78em; cursor: pointer;
+            transition: all 0.2s;
+        }
+        .tpl-del-btn:hover { background: rgba(207,34,46,0.08); border-color: #cf222e; color: #cf222e; }
+
+        .tpl-apply-form {
+            display: none;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px dashed #d0d7de;
+        }
+        .tpl-apply-form.open { display: block; }
+        .tpl-date-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; }
+        .tpl-date-row label { font-size: 0.72em; font-weight: 600; color: #656d76; }
+        .tpl-date-row input[type="date"] {
+            padding: 4px 8px; border: 1px solid #d0d7de; border-radius: 6px;
+            font-size: 0.8em; color: #1f2328; background: #fff;
+        }
+        .tpl-confirm-btn {
+            padding: 5px 14px;
+            background: linear-gradient(135deg,#0969da,#388bfd);
+            color: #fff; border: none; border-radius: 6px;
+            font-size: 0.78em; font-weight: 600; cursor: pointer;
+        }
+
+        /* Create template form */
+        .tpl-create-row {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 6px;
+            margin: 10px 0;
+        }
+        .tpl-day-col { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+        .tpl-day-lbl { font-size: 0.68em; font-weight: 700; color: #656d76; text-transform: uppercase; }
+        .tpl-day-sel {
+            width: 100%;
+            padding: 4px 2px;
+            border: 1px solid #d0d7de;
+            border-radius: 6px;
+            font-size: 0.72em;
+            font-weight: 600;
+            text-align: center;
+            cursor: pointer;
+            background: #fff;
+            color: #1f2328;
+            appearance: none;
+            -webkit-appearance: none;
+            text-align-last: center;
+            transition: border-color 0.2s;
+        }
+        .tpl-day-sel:focus { outline: none; border-color: #8250df; }
+        .tpl-name-input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #d0d7de;
+            border-radius: 8px;
+            font-size: 0.88em;
+            color: #1f2328;
+            background: #fff;
+            margin-bottom: 10px;
+        }
+        .tpl-name-input:focus { outline: none; border-color: #8250df; box-shadow: 0 0 0 3px rgba(130,80,223,0.12); }
+        .tpl-save-btn {
+            width: 100%;
+            padding: 9px;
+            background: linear-gradient(135deg,#6e40c9,#8250df);
+            color: #fff; border: none; border-radius: 8px;
+            font-size: 0.88em; font-weight: 600; cursor: pointer;
+            box-shadow: 0 2px 8px rgba(130,80,223,0.2);
+            transition: all 0.2s;
+            margin-top: 8px;
+        }
+        .tpl-save-btn:hover { box-shadow: 0 4px 14px rgba(130,80,223,0.35); }
+        .tpl-empty { color: #8c959f; font-size: 0.85em; text-align: center; padding: 20px 0; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>{{ employee.name }} - Work Schedule</h1>
+        <nav>
+            {% if is_admin %}
+                {% if ref_team_id %}
+                    <a href="{{ url_for('team_members', team_id=ref_team_id) }}" class="button">Back to Team</a>
+                {% else %}
+                    <a href="{{ url_for('admin_dashboard') }}" class="button">Back to Dashboard</a>
+                {% endif %}
+            {% endif %}
+            <a href="{{ url_for('logout') }}" class="button">Logout</a>
+        </nav>
+    </header>
+
+    <main>
+        {% if is_admin %}
+            {% if ref_team_id %}
+                <a href="{{ url_for('team_members', team_id=ref_team_id) }}" class="back-link">← Back to Team Members</a>
+            {% else %}
+                <a href="{{ url_for('admin_dashboard') }}" class="back-link">← Back to Dashboard</a>
+            {% endif %}
+        {% endif %}
+
+        <div class="individual-calendar">
+            <!-- Calendar Navigation -->
+            <div class="calendar-nav" style="flex-wrap:wrap;gap:10px;">
+                <a href="{{ url_for('employee_calendar', employee_id=employee.id, date=prev_month.strftime('%Y-%m-%d'), ref_team_id=ref_team_id) }}" class="button">&lt; Prev Month</a>
+                <h2 style="margin:0;">{{ current_date.strftime('%B %Y') }}</h2>
+                <a href="{{ url_for('employee_calendar', employee_id=employee.id, date=next_month.strftime('%Y-%m-%d'), ref_team_id=ref_team_id) }}" class="button">Next Month &gt;</a>
+
+                <!-- Quick month jump -->
+                <div style="display:flex;align-items:center;gap:8px;margin-left:auto;">
+                    <label style="font-size:0.9em;color:#555;margin:0;">Jump to:</label>
+                    <input type="date" id="month-jump" class="month-jump"
+                           value="{{ current_date.strftime('%Y-%m-%d') }}"
+                           onchange="jumpToDate(this.value)">
+                </div>
+            </div>
+
+            <div style="text-align: right; margin-bottom: 15px; margin-top: 8px;">
+                <button onclick="sendSchedule()" class="button" style="background:#28a745;">
+                    Send Updated Schedule
+                </button>
+            </div>
+
+            {% if is_admin %}
+            <!-- Shift Assignment Controls -->
+            <div class="shift-selector-bar">
+                <span><strong>Select dates, then click a shift:</strong></span>
+                <button class="shift-button shift-M" data-shift="M" onclick="applyShift('M')">Morning (M)</button>
+                <button class="shift-button shift-A" data-shift="A" onclick="applyShift('A')">Afternoon (A)</button>
+                <button class="shift-button shift-N" data-shift="N" onclick="applyShift('N')">Night (N)</button>
+                <button class="shift-button shift-L" data-shift="L" onclick="applyShift('L')">Leave (L)</button>
+                <button class="shift-button shift-O" data-shift="O" onclick="applyShift('O')">OFF (O)</button>
+                <button class="shift-button shift-G" data-shift="G" onclick="applyShift('G')">General (G)</button>
+                <span id="sel-count" style="margin-left:auto;color:#555;font-size:0.9em;font-weight:bold;"></span>
+            </div>
+
+            <div style="background:#fff3cd;padding:10px 15px;border-radius:6px;margin-bottom:12px;font-size:0.9em;color:#856404;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                <div>
+                    <strong>Tip:</strong> Click dates on the calendar to select (click again to deselect).
+                    Use <strong>Pick Multiple Dates</strong> to select dates across different months.
+                    Then click a shift button above to save all at once.
+                </div>
+                <div style="display:flex;gap:8px;margin-left:auto;">
+                    <button class="btn-open-picker" onclick="openPicker()">📅 Pick Multiple Dates</button>
+                    <button id="clear-btn" onclick="clearSelection()" style="background:#6c757d;color:white;border:none;border-radius:4px;padding:6px 12px;cursor:pointer;display:none;">Clear Selection</button>
+                    <button class="tpl-toggle-btn" onclick="toggleTemplatePanel()">📋 Templates</button>
+                </div>
+            </div>
+
+            <!-- ── Recurring Shift Templates Panel ─────────────── -->
+            <div id="tpl-panel" class="tpl-panel">
+                <div class="tpl-panel-hdr">
+                    <span>📋 Recurring Shift Templates</span>
+                    <button onclick="toggleTemplatePanel()" title="Close">×</button>
+                </div>
+                <div class="tpl-body">
+                    <!-- Saved templates list -->
+                    <div class="tpl-left">
+                        <div class="tpl-section-title">Saved Templates</div>
+                        <div class="tpl-list" id="tpl-list">
+                            <div class="tpl-empty">Loading…</div>
+                        </div>
+                    </div>
+                    <!-- Create new template -->
+                    <div class="tpl-right">
+                        <div class="tpl-section-title">Create New Template</div>
+                        <input type="text" id="tpl-name" class="tpl-name-input" placeholder="Template name  e.g. Morning Week">
+                        <div class="tpl-create-row" id="tpl-day-selectors">
+                            {% for day in ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] %}
+                            <div class="tpl-day-col">
+                                <span class="tpl-day-lbl">{{ day }}</span>
+                                <select class="tpl-day-sel" id="tpl-{{ day|lower }}">
+                                    <option value="">—</option>
+                                    <option value="M">M</option>
+                                    <option value="A">A</option>
+                                    <option value="N">N</option>
+                                    <option value="L">L</option>
+                                    <option value="O">O</option>
+                                    <option value="G">G</option>
+                                </select>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <div style="font-size:0.72em;color:#8c959f;margin-bottom:6px;">
+                            M=Morning &nbsp;A=Afternoon &nbsp;N=Night &nbsp;L=Leave &nbsp;O=OFF &nbsp;G=General &nbsp;—=Skip
+                        </div>
+                        <button class="tpl-save-btn" onclick="saveTemplate()">💾 Save Template</button>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Monthly Calendar Grid -->
+            <div class="calendar-grid">
+                <div class="day-header">MON</div>
+                <div class="day-header">TUE</div>
+                <div class="day-header">WED</div>
+                <div class="day-header">THU</div>
+                <div class="day-header">FRI</div>
+                <div class="day-header day-weekend">SAT</div>
+                <div class="day-header day-weekend">SUN</div>
+
+                {% for date in calendar_dates %}
+                    {% set shift_type = schedule_data.get(date.strftime('%Y-%m-%d'), '') %}
+                    <div class="calendar-day {% if date.month != current_date.month %}other-month{% endif %} {% if shift_type %}cell-shift-{{ shift_type }}{% endif %}"
+                         data-date="{{ date.strftime('%Y-%m-%d') }}"
+                         {% if is_admin and date.month == current_date.month %}onclick="toggleDate(this)"{% endif %}>
+                        <div class="day-number">{{ date.day }}</div>
+                        {% if shift_type %}
+                            <div class="cell-shift-label">{{ shift_type }}</div>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+
+            <!-- Legend -->
+            <div style="background:#fff;padding:15px;border-radius:8px;margin-top:20px;">
+                <h4 style="margin-top:0;">Shift Legend:</h4>
+                <div style="display:flex;gap:12px;flex-wrap:wrap;">
+                    {% for code, label in [('M','Morning'),('A','Afternoon'),('N','Night'),('L','Leave'),('O','OFF'),('G','General')] %}
+                    <div style="display:flex;align-items:center;">
+                        <span class="shift-label shift-{{ code }}" style="width:30px;height:30px;margin-right:6px;">{{ code }}</span>
+                        <span>{{ label }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Multi-Date Picker Modal -->
+    <div id="picker-overlay" class="picker-overlay" onclick="overlayClick(event)">
+        <div class="picker-box">
+            <div class="picker-header">
+                <strong style="font-size:1.05em;">Select Multiple Dates</strong>
+                <button onclick="closePicker()" style="background:none;border:none;font-size:1.5em;cursor:pointer;color:#666;line-height:1;">×</button>
+            </div>
+            <div class="picker-month-nav">
+                <button onclick="pickerPrevMonth()">‹</button>
+                <strong id="picker-month-label"></strong>
+                <button onclick="pickerNextMonth()">›</button>
+            </div>
+            <div id="picker-grid" class="picker-grid"></div>
+            <div class="picker-footer">
+                <span class="picker-sel-info" id="picker-sel-count"></span>
+                <div class="picker-actions">
+                    <button class="btn-clear-picker" onclick="clearPickerSelection()">Clear All</button>
+                    <button class="btn-done-picker" onclick="closePicker()">Done</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="notification-bar" class="notification-bar"></div>
+
+    <script>
+        const employeeId = {{ employee.id }};
+        const isAdmin = {{ 'true' if is_admin else 'false' }};
+        let selectedDates = new Set();
+
+        // Current displayed month (for picker initialization)
+        const pageYear  = {{ current_date.year }};
+        const pageMonth = {{ current_date.month - 1 }}; // 0-indexed
+
+        // ── Main calendar ──────────────────────────────────────────
+        function toggleDate(el) {
+            const d = el.dataset.date;
+            if (selectedDates.has(d)) {
+                selectedDates.delete(d);
+                el.classList.remove('selected');
+            } else {
+                selectedDates.add(d);
+                el.classList.add('selected');
+            }
+            updateSelCount();
+        }
+
+        function updateSelCount() {
+            const n = selectedDates.size;
+            document.getElementById('sel-count').textContent = n > 0 ? `${n} date(s) selected` : '';
+            const btn = document.getElementById('clear-btn');
+            if (btn) btn.style.display = n > 0 ? 'inline-block' : 'none';
+        }
+
+        function clearSelection() {
+            selectedDates.clear();
+            document.querySelectorAll('.calendar-day.selected').forEach(el => el.classList.remove('selected'));
+            updateSelCount();
+        }
+
+        function applyShift(shiftType) {
+            if (!isAdmin) return;
+            if (selectedDates.size === 0) {
+                showNotification('Select at least one date first, then click a shift.', 'warning');
+                return;
+            }
+            const dates = Array.from(selectedDates);
+            fetch('{{ url_for("update_employee_shift") }}', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({employee_id: employeeId, dates, shift_type: shiftType})
+            })
+            .then(r => r.json())
+            .then(data => {
+                showNotification(data.message, data.status === 'success' ? 'success' : 'warning');
+                if (data.status === 'success') {
+                    setTimeout(() => window.location.reload(), 800);
+                }
+            })
+            .catch(() => showNotification('Error updating shifts.', 'error'));
+        }
+
+        function jumpToDate(dateStr) {
+            if (!dateStr) return;
+            const url = new URL(window.location.href);
+            url.searchParams.set('date', dateStr);
+            window.location.href = url.href;
+        }
+
+        // ── Multi-date picker ──────────────────────────────────────
+        let pickerYear  = pageYear;
+        let pickerMonth = pageMonth;
+
+        function openPicker() {
+            pickerYear  = pageYear;
+            pickerMonth = pageMonth;
+            renderPicker();
+            document.getElementById('picker-overlay').classList.add('open');
+        }
+
+        function closePicker() {
+            document.getElementById('picker-overlay').classList.remove('open');
+            // Sync selections back onto the visible calendar grid
+            document.querySelectorAll('.calendar-day[data-date]').forEach(el => {
+                if (selectedDates.has(el.dataset.date)) {
+                    el.classList.add('selected');
+                } else {
+                    el.classList.remove('selected');
+                }
+            });
+            updateSelCount();
+        }
+
+        function overlayClick(e) {
+            if (e.target === document.getElementById('picker-overlay')) closePicker();
+        }
+
+        function pickerPrevMonth() {
+            pickerMonth--;
+            if (pickerMonth < 0) { pickerMonth = 11; pickerYear--; }
+            renderPicker();
+        }
+
+        function pickerNextMonth() {
+            pickerMonth++;
+            if (pickerMonth > 11) { pickerMonth = 0; pickerYear++; }
+            renderPicker();
+        }
+
+        function renderPicker() {
+            const monthNames = ['January','February','March','April','May','June',
+                                'July','August','September','October','November','December'];
+            document.getElementById('picker-month-label').textContent =
+                `${monthNames[pickerMonth]} ${pickerYear}`;
+
+            const grid = document.getElementById('picker-grid');
+            grid.innerHTML = '';
+
+            ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].forEach(d => {
+                const h = document.createElement('div');
+                h.className = 'picker-day-hdr';
+                h.textContent = d;
+                grid.appendChild(h);
+            });
+
+            // Blank cells before the 1st (Monday = 0)
+            let startDay = new Date(pickerYear, pickerMonth, 1).getDay(); // 0=Sun
+            startDay = (startDay === 0) ? 6 : startDay - 1;              // shift to Mon=0
+            for (let i = 0; i < startDay; i++) {
+                const blank = document.createElement('div');
+                blank.className = 'picker-day p-empty';
+                grid.appendChild(blank);
+            }
+
+            const daysInMonth = new Date(pickerYear, pickerMonth + 1, 0).getDate();
+            for (let d = 1; d <= daysInMonth; d++) {
+                const dateStr = `${pickerYear}-${String(pickerMonth + 1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                const cell = document.createElement('div');
+                cell.className = 'picker-day' + (selectedDates.has(dateStr) ? ' p-selected' : '');
+                cell.textContent = d;
+                cell.dataset.date = dateStr;
+                cell.onclick = () => togglePickerDay(cell);
+                grid.appendChild(cell);
+            }
+
+            updatePickerCount();
+        }
+
+        function togglePickerDay(cell) {
+            const d = cell.dataset.date;
+            if (selectedDates.has(d)) {
+                selectedDates.delete(d);
+                cell.classList.remove('p-selected');
+            } else {
+                selectedDates.add(d);
+                cell.classList.add('p-selected');
+            }
+            updatePickerCount();
+        }
+
+        function updatePickerCount() {
+            const n = selectedDates.size;
+            document.getElementById('picker-sel-count').textContent =
+                n > 0 ? `${n} date(s) selected` : 'Click dates to select';
+        }
+
+        function clearPickerSelection() {
+            selectedDates.clear();
+            document.querySelectorAll('#picker-grid .picker-day').forEach(el => el.classList.remove('p-selected'));
+            updatePickerCount();
+        }
+
+        // ── Misc ───────────────────────────────────────────────────
+        function sendSchedule() {
+            showNotification('Sending email...', 'info');
+            fetch(`/send_schedule/${employeeId}`, {method: 'POST'})
+                .then(r => r.json())
+                .then(d => showNotification(d.message, d.status === 'success' ? 'success' : 'error'))
+                .catch(() => showNotification('Error sending email.', 'error'));
+        }
+
+        function showNotification(msg, type) {
+            const bar = document.getElementById('notification-bar');
+            bar.textContent = msg;
+            bar.className = `notification-bar ${type}`;
+            setTimeout(() => { bar.className = 'notification-bar'; }, 3500);
+        }
+
+        // ── Shift Templates ────────────────────────────────────────
+        const SHIFT_COLORS = {M:'#d4a72c',A:'#d15704',N:'#1f6feb',O:'#1a7f37',L:'#cf222e',G:'#8250df'};
+        const DAY_KEYS = ['mon','tue','wed','thu','fri','sat','sun'];
+        const DAY_LABELS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+        let tplPanelOpen = false;
+        let templates = [];
+
+        function toggleTemplatePanel() {
+            tplPanelOpen = !tplPanelOpen;
+            const panel = document.getElementById('tpl-panel');
+            panel.classList.toggle('open', tplPanelOpen);
+            if (tplPanelOpen) loadTemplates();
+        }
+
+        function loadTemplates() {
+            fetch('/api/shift_templates')
+                .then(r => r.json())
+                .then(data => { templates = data; renderTemplateList(); })
+                .catch(() => showNotification('Failed to load templates.', 'error'));
+        }
+
+        function renderTemplateList() {
+            const list = document.getElementById('tpl-list');
+            if (!templates.length) {
+                list.innerHTML = '<div class="tpl-empty">No templates yet. Create one on the right →</div>';
+                return;
+            }
+            list.innerHTML = templates.map(t => {
+                const dots = DAY_KEYS.map((k, i) => {
+                    const v = t.pattern[k];
+                    return v
+                        ? `<span class="tpl-dot tpl-dot-${v}" title="${DAY_LABELS[i]}">${DAY_LABELS[i][0]} <b>${v}</b></span>`
+                        : `<span class="tpl-dot tpl-dot-empty" title="${DAY_LABELS[i]}">${DAY_LABELS[i][0]}</span>`;
+                }).join('');
+                return `
+                <div class="tpl-item" id="tpl-item-${t.id}">
+                    <div class="tpl-item-name">📋 ${t.name}</div>
+                    <div class="tpl-pattern">${dots}</div>
+                    <div class="tpl-item-actions">
+                        <button class="tpl-apply-btn" onclick="toggleApplyForm(${t.id})">▶ Apply to ${document.title.split(' - ')[0]}</button>
+                        <button class="tpl-del-btn" onclick="deleteTemplate(${t.id},'${t.name.replace(/'/g,"\\'")}')">🗑</button>
+                    </div>
+                    <div class="tpl-apply-form" id="tpl-apply-${t.id}">
+                        <div class="tpl-date-row">
+                            <label>From</label>
+                            <input type="date" id="tpl-start-${t.id}">
+                            <label>To</label>
+                            <input type="date" id="tpl-end-${t.id}">
+                            <button class="tpl-confirm-btn" onclick="applyTemplate(${t.id})">Apply ✓</button>
+                        </div>
+                        <div style="font-size:0.72em;color:#8c959f;">
+                            The weekly pattern will repeat across all days in the range.
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function toggleApplyForm(tplId) {
+            // Close all others first
+            templates.forEach(t => {
+                if (t.id !== tplId) {
+                    const f = document.getElementById(`tpl-apply-${t.id}`);
+                    if (f) f.classList.remove('open');
+                }
+            });
+            const form = document.getElementById(`tpl-apply-${tplId}`);
+            form.classList.toggle('open');
+            if (form.classList.contains('open')) {
+                // Pre-fill today → end of current month
+                const today = new Date();
+                const y = today.getFullYear(), m = today.getMonth();
+                const lastDay = new Date(y, m + 1, 0).getDate();
+                const pad = n => String(n).padStart(2,'0');
+                document.getElementById(`tpl-start-${tplId}`).value =
+                    `${y}-${pad(m+1)}-${pad(today.getDate())}`;
+                document.getElementById(`tpl-end-${tplId}`).value =
+                    `${y}-${pad(m+1)}-${pad(lastDay)}`;
+            }
+        }
+
+        function applyTemplate(tplId) {
+            const start = document.getElementById(`tpl-start-${tplId}`).value;
+            const end   = document.getElementById(`tpl-end-${tplId}`).value;
+            if (!start || !end) { showNotification('Please select a date range.', 'warning'); return; }
+            fetch('/api/apply_template', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({template_id: tplId, employee_id: employeeId, start_date: start, end_date: end})
+            })
+            .then(r => r.json())
+            .then(d => {
+                showNotification(d.message, d.status);
+                if (d.status === 'success') setTimeout(() => location.reload(), 1000);
+            })
+            .catch(() => showNotification('Error applying template.', 'error'));
+        }
+
+        function deleteTemplate(tplId, tplName) {
+            if (!confirm(`Delete template "${tplName}"?`)) return;
+            fetch(`/api/shift_templates/${tplId}`, {method: 'DELETE'})
+                .then(r => r.json())
+                .then(d => {
+                    showNotification(d.message, d.status);
+                    if (d.status === 'success') loadTemplates();
+                });
+        }
+
+        function colorDaySel(sel) {
+            const colors = {M:'#d4a72c',A:'#d15704',N:'#1f6feb',O:'#1a7f37',L:'#cf222e',G:'#8250df','':`#ffffff`};
+            const v = sel.value;
+            sel.style.background = colors[v] || '#fff';
+            sel.style.color = v ? '#fff' : '#1f2328';
+            sel.style.borderColor = colors[v] || '#d0d7de';
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            DAY_KEYS.forEach(k => {
+                const el = document.getElementById(`tpl-${k}`);
+                if (el) {
+                    el.addEventListener('change', () => colorDaySel(el));
+                    colorDaySel(el);
+                }
+            });
+        });
+
+        function saveTemplate() {
+            const name = document.getElementById('tpl-name').value.trim();
+            if (!name) { showNotification('Enter a template name.', 'warning'); return; }
+            const pattern = {};
+            DAY_KEYS.forEach(k => { pattern[k] = document.getElementById(`tpl-${k}`).value || null; });
+            if (!Object.values(pattern).some(Boolean)) {
+                showNotification('Set at least one day shift before saving.', 'warning'); return;
+            }
+            fetch('/api/shift_templates', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({name, ...pattern})
+            })
+            .then(r => r.json())
+            .then(d => {
+                showNotification(d.message, d.status);
+                if (d.status === 'success') {
+                    document.getElementById('tpl-name').value = '';
+                    DAY_KEYS.forEach(k => { document.getElementById(`tpl-${k}`).value = ''; });
+                    loadTemplates();
+                }
+            })
+            .catch(() => showNotification('Error saving template.', 'error'));
+        }
+    </script>
+</body>
+</html>

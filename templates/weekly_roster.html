@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ team.name }} - Weekly Roster</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>
+        <h1>{{ team.name }} - Weekly Roster</h1>
+        <nav>
+            <a href="{{ url_for('team_members', team_id=team.id) }}" class="button">Team Members</a>
+            <a href="{{ url_for('team_dashboard', team_id=team.id) }}" class="button">Monthly Roster</a>
+            <a href="{{ url_for('admin_dashboard') }}" class="button">Back to Dashboard</a>
+            <a href="{{ url_for('logout') }}" class="button">Logout</a>
+        </nav>
+    </header>
+
+    <main>
+        <!-- Shift Selector Bar -->
+        <div class="roster-shift-bar">
+            <strong>Select cells, then click a shift:</strong>
+            <button class="shift-button shift-M" onclick="applyRosterShift('M')">Morning (M)</button>
+            <button class="shift-button shift-A" onclick="applyRosterShift('A')">Afternoon (A)</button>
+            <button class="shift-button shift-N" onclick="applyRosterShift('N')">Night (N)</button>
+            <button class="shift-button shift-L" onclick="applyRosterShift('L')">Leave (L)</button>
+            <button class="shift-button shift-O" onclick="applyRosterShift('O')">OFF (O)</button>
+            <button class="shift-button shift-G" onclick="applyRosterShift('G')">General (G)</button>
+            <button onclick="clearRosterSelection()" style="background:#6c757d;color:#fff;border:none;border-radius:4px;padding:8px 12px;cursor:pointer;">Clear</button>
+            <span class="sel-count" id="sel-count"></span>
+        </div>
+
+        <div class="roster-controls" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
+            <!-- Week Navigation -->
+            <div class="month-nav">
+                <a href="{{ url_for('weekly_roster', team_id=team.id, date=prev_week.strftime('%Y-%m-%d')) }}" class="button">&lt; Prev Week</a>
+                <span style="margin:0 15px;font-weight:bold;font-size:1.2em;">
+                    {{ start_of_week.strftime('%d %b') }} – {{ end_of_week.strftime('%d %b %Y') }}
+                </span>
+                <a href="{{ url_for('weekly_roster', team_id=team.id, date=next_week.strftime('%Y-%m-%d')) }}" class="button">Next Week &gt;</a>
+            </div>
+
+            <button onclick="sendSchedules()" class="button" style="background:#28a745;">Email Weekly Roster (Image)</button>
+        </div>
+
+        <!-- Weekly Roster Table -->
+        <div style="overflow-x:auto;background:white;padding:20px;">
+            <table class="roster-table mini-style">
+                <thead>
+                    <tr class="main-blue-header">
+                        <th style="width:150px;">Employee</th>
+                        {% for date in week_dates %}
+                            <th style="line-height:1.3;" title="{{ date.strftime('%A, %d %b') }}"{% if date.weekday() >= 5 %} class="weekend-header"{% endif %}>
+                                {{ date.day }}<br>
+                                <span style="font-size:0.75em;font-weight:normal;opacity:0.85;">{{ date.strftime('%a') }}</span>
+                            </th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for employee in employees %}
+                    <tr>
+                        <td class="employee-name-fixed emp-name-clickable"
+                            data-name="{{ employee.name }}"
+                            data-email="{{ employee.email }}"
+                            data-phone="{{ employee.phone or '—' }}"
+                            data-teams="{{ employee.teams | map(attribute='name') | join(', ') or 'No team' }}"
+                            onmouseenter="showEmpPopup(event, this)"
+                            onmouseleave="scheduleHidePopup()"
+                            onclick="showEmpPopup(event, this)">{{ employee.name }}</td>
+                        {% for date in week_dates %}
+                            {% set date_str = date.strftime('%Y-%m-%d') %}
+                            {% set shift_type = schedule_data[employee.id].get(date_str, '') %}
+                            <td class="mini-cell shift-{{ shift_type }}{% if date.weekday() >= 5 %} weekend-td{% endif %}"
+                                data-employee-id="{{ employee.id }}"
+                                data-date="{{ date_str }}"
+                                onclick="toggleCell(this)"
+                                title="{{ employee.name }} – {{ date.strftime('%A, %d %b') }}">
+                                {{ shift_type if shift_type in ['M','A','N','L','G'] else (shift_type if shift_type == 'O' else '') }}
+                            </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Legend -->
+        <div style="margin-top:16px;background:white;padding:14px;border-radius:8px;">
+            <strong>Legend:</strong>
+            {% for code, label in [('M','Morning'),('A','Afternoon'),('N','Night'),('L','Leave'),('O','OFF'),('G','General')] %}
+                <span class="mini-cell shift-{{ code }}" style="display:inline-block;padding:2px 10px;margin:0 4px;">{{ code }} – {{ label }}</span>
+            {% endfor %}
+        </div>
+
+        <div style="margin-top:8px;font-size:0.82em;color:#666;">
+            Tip: Click cells to select (click again to deselect). Select across rows and days freely, then click a shift button above — saves instantly.
+        </div>
+    </main>
+
+    <div id="notification-bar" class="notification-bar"></div>
+
+    <!-- Employee Info Popup -->
+    <div id="emp-popup" style="
+        display:none; position:fixed; z-index:9000;
+        background:#fff; border:1px solid #d0d7de; border-radius:10px;
+        box-shadow:0 8px 24px rgba(31,35,40,0.18); padding:14px 18px;
+        min-width:230px; pointer-events:auto;
+    " onmouseenter="cancelHidePopup()" onmouseleave="scheduleHidePopup()">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <span id="popup-name" style="font-weight:700;font-size:1em;color:#1f2328;"></span>
+            <button onclick="hidePopupNow()"
+                style="background:none;border:none;cursor:pointer;font-size:1.1em;color:#656d76;line-height:1;">×</button>
+        </div>
+        <div style="font-size:0.84em;color:#656d76;margin-bottom:6px;">📧 <span id="popup-email" style="color:#0969da;word-break:break-all;"></span></div>
+        <div style="font-size:0.84em;color:#656d76;margin-bottom:6px;">📱 <span id="popup-phone" style="color:#1f2328;"></span></div>
+        <div style="font-size:0.84em;color:#656d76;">👥 <span id="popup-teams" style="color:#1f2328;"></span></div>
+    </div>
+
+    <script>
+        const teamId = {{ team.id }};
+        let selectedCells = new Map();
+
+        function toggleCell(el) {
+            const key = `${el.dataset.employeeId}|${el.dataset.date}`;
+            if (selectedCells.has(key)) {
+                selectedCells.delete(key);
+                el.classList.remove('cell-selected');
+            } else {
+                selectedCells.set(key, {
+                    employee_id: parseInt(el.dataset.employeeId),
+                    date: el.dataset.date,
+                    el
+                });
+                el.classList.add('cell-selected');
+            }
+            document.getElementById('sel-count').textContent =
+                selectedCells.size > 0 ? `${selectedCells.size} cell(s) selected` : '';
+        }
+
+        function clearRosterSelection() {
+            selectedCells.forEach(c => c.el.classList.remove('cell-selected'));
+            selectedCells.clear();
+            document.getElementById('sel-count').textContent = '';
+        }
+
+        function applyRosterShift(shiftType) {
+            if (selectedCells.size === 0) {
+                showNotification('Select cells first, then click a shift type.', 'warning');
+                return;
+            }
+            const cells = Array.from(selectedCells.values()).map(c => ({employee_id: c.employee_id, date: c.date}));
+            fetch('/api/update_roster_shifts', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({cells, shift_type: shiftType})
+            })
+            .then(r => r.json())
+            .then(data => {
+                showNotification(data.message, data.status === 'success' ? 'success' : 'warning');
+                if (data.status === 'success') {
+                    const showText = ['M','A','N','L','G'].includes(shiftType) ? shiftType : (shiftType === 'O' ? 'O' : '');
+                    selectedCells.forEach(c => {
+                        ['M','A','N','L','O','G'].forEach(s => c.el.classList.remove('shift-' + s));
+                        if (shiftType) c.el.classList.add('shift-' + shiftType);
+                        c.el.textContent = showText;
+                        c.el.classList.remove('cell-selected');
+                    });
+                    selectedCells.clear();
+                    document.getElementById('sel-count').textContent = '';
+                }
+            })
+            .catch(() => showNotification('Error updating shifts.', 'error'));
+        }
+
+        function sendSchedules() {
+            showConfirm(
+                '📧 Email Weekly Roster',
+                'Send the weekly roster image to all team members?',
+                () => {
+                    fetch('/send_schedules', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({mode: 'weekly', team_id: teamId})
+                    })
+                    .then(r => r.json())
+                    .then(d => showNotification(d.message, d.status === 'success' ? 'success' : 'error'));
+                }
+            );
+        }
+
+        function showNotification(msg, type) {
+            const bar = document.getElementById('notification-bar');
+            bar.textContent = msg;
+            bar.className = `notification-bar ${type}`;
+            setTimeout(() => { bar.className = 'notification-bar'; }, 3500);
+        }
+
+        function showConfirm(title, message, onConfirm) {
+            document.getElementById('confirm-title').textContent = title;
+            document.getElementById('confirm-message').textContent = message;
+            document.getElementById('confirm-ok').onclick = () => {
+                closeConfirm();
+                onConfirm();
+            };
+            document.getElementById('confirm-modal').classList.add('open');
+        }
+        function closeConfirm() {
+            document.getElementById('confirm-modal').classList.remove('open');
+        }
+
+        let _hideTimer = null;
+        function showEmpPopup(e, el) {
+            e.stopPropagation();
+            cancelHidePopup();
+            const popup = document.getElementById('emp-popup');
+            document.getElementById('popup-name').textContent = el.dataset.name;
+            document.getElementById('popup-email').textContent = el.dataset.email;
+            document.getElementById('popup-phone').textContent = el.dataset.phone || '—';
+            document.getElementById('popup-teams').textContent = el.dataset.teams;
+            popup.style.display = 'block';
+            const rect = el.getBoundingClientRect();
+            const pw = popup.offsetWidth, ph = popup.offsetHeight;
+            let left = rect.right + 8;
+            if (left + pw > window.innerWidth - 10) left = rect.left - pw - 8;
+            let top = rect.top;
+            if (top + ph > window.innerHeight - 10) top = window.innerHeight - ph - 10;
+            popup.style.left = left + 'px';
+            popup.style.top = top + 'px';
+        }
+        function scheduleHidePopup() {
+            _hideTimer = setTimeout(() => {
+                document.getElementById('emp-popup').style.display = 'none';
+            }, 200);
+        }
+        function cancelHidePopup() {
+            if (_hideTimer) { clearTimeout(_hideTimer); _hideTimer = null; }
+        }
+        function hidePopupNow() {
+            document.getElementById('emp-popup').style.display = 'none';
+        }
+        document.addEventListener('click', hidePopupNow);
+    </script>
+</body>
+
+<!-- Custom Confirm Modal -->
+<div id="confirm-modal" style="
+    display:none; position:fixed; inset:0;
+    background:rgba(31,35,40,0.45); backdrop-filter:blur(6px);
+    z-index:9999; align-items:center; justify-content:center;
+">
+<style>
+    #confirm-modal.open { display:flex !important; }
+    #confirm-box {
+        background:#fff;
+        border-radius:16px;
+        padding:28px 28px 22px;
+        width:380px; max-width:92vw;
+        box-shadow:0 24px 60px rgba(31,35,40,0.22);
+        animation: cfPop 0.22s cubic-bezier(0.16,1,0.3,1);
+        text-align:center;
+    }
+    @keyframes cfPop {
+        from { transform:scale(0.92) translateY(10px); opacity:0; }
+        to   { transform:scale(1) translateY(0); opacity:1; }
+    }
+    #confirm-icon {
+        width:56px; height:56px;
+        background:linear-gradient(135deg,#dbeafe,#bfdbfe);
+        border-radius:50%;
+        display:flex; align-items:center; justify-content:center;
+        font-size:1.6em; margin:0 auto 16px;
+    }
+    #confirm-title {
+        font-size:1.05em; font-weight:700;
+        color:#1f2328; margin-bottom:8px;
+    }
+    #confirm-message {
+        font-size:0.88em; color:#656d76;
+        line-height:1.5; margin-bottom:24px;
+    }
+    .cf-btn-row { display:flex; gap:10px; }
+    #confirm-cancel {
+        flex:1; padding:10px; border-radius:10px;
+        background:#f6f8fa; border:1px solid #d0d7de;
+        color:#1f2328; font-size:0.9em; font-weight:600;
+        cursor:pointer; transition:all 0.2s;
+    }
+    #confirm-cancel:hover { background:#eaeef2; border-color:#8c959f; }
+    #confirm-ok {
+        flex:1; padding:10px; border-radius:10px;
+        background:linear-gradient(135deg,#0969da,#388bfd);
+        border:none; color:#fff;
+        font-size:0.9em; font-weight:700;
+        cursor:pointer;
+        box-shadow:0 3px 10px rgba(9,105,218,0.25);
+        transition:all 0.2s;
+    }
+    #confirm-ok:hover { box-shadow:0 6px 18px rgba(9,105,218,0.4); transform:translateY(-1px); }
+</style>
+    <div id="confirm-box">
+        <div id="confirm-icon">📧</div>
+        <div id="confirm-title"></div>
+        <div id="confirm-message"></div>
+        <div class="cf-btn-row">
+            <button id="confirm-cancel" onclick="closeConfirm()">Cancel</button>
+            <button id="confirm-ok">Send now</button>
+        </div>
+    </div>
+</div>
+
+</html>

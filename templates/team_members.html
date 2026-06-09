@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ team.name }} - Team Members</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .assign-form { display:none; margin-top:10px; }
+        .employee-card .assign-toggle { font-size:0.8em; color:#007bff; cursor:pointer; margin-top:6px; display:block; }
+        .assign-form select { width:100%; padding:5px; margin-bottom:6px; border:1px solid #ccc; border-radius:4px; }
+        .assign-form button { background:#28a745; color:white; border:none; border-radius:4px; padding:5px 10px; cursor:pointer; }
+
+        .employee-card { position: relative; }
+        .member-edit-btn {
+            position: absolute;
+            top: 10px; left: 10px;
+            background: transparent;
+            border: 1px solid #d0d7de;
+            border-radius: 6px;
+            color: #8c959f;
+            width: 28px; height: 28px;
+            cursor: pointer;
+            font-size: 0.78em;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.2s;
+            line-height: 1;
+            padding: 0;
+        }
+        .member-edit-btn:hover { background: rgba(9,105,218,0.08); border-color: #0969da; color: #0969da; }
+
+        .member-delete-btn {
+            position: absolute;
+            top: 10px; right: 10px;
+            background: transparent;
+            border: 1px solid #d0d7de;
+            border-radius: 6px;
+            color: #8c959f;
+            width: 28px; height: 28px;
+            cursor: pointer;
+            font-size: 0.85em;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.2s;
+            line-height: 1;
+            padding: 0;
+        }
+        .member-delete-btn:hover { background: rgba(207,34,46,0.08); border-color: #cf222e; color: #cf222e; }
+
+        /* Confirm modal */
+        .confirm-modal {
+            display: none; position: fixed; inset: 0;
+            background: rgba(31,35,40,0.55); backdrop-filter: blur(6px);
+            z-index: 2500; align-items: center; justify-content: center;
+        }
+        .confirm-modal.open { display: flex; }
+        .confirm-box {
+            background: #fff; border: 1px solid #d0d7de; border-radius: 14px;
+            width: 400px; max-width: 94vw;
+            box-shadow: 0 16px 48px rgba(31,35,40,0.22);
+            animation: popIn 0.22s cubic-bezier(0.16,1,0.3,1);
+            overflow: hidden;
+        }
+        @keyframes popIn {
+            from { transform: scale(0.94) translateY(12px); opacity: 0; }
+            to   { transform: scale(1) translateY(0); opacity: 1; }
+        }
+        .confirm-box-hdr {
+            padding: 14px 18px; background: #fff8f0;
+            border-bottom: 1px solid #fde8d0;
+            font-size: 1em; font-weight: 600; color: #92400e;
+        }
+        .confirm-box-body { padding: 20px 18px; }
+        .confirm-box-body p { color: #1f2328; font-size: 0.92em; line-height: 1.55; margin: 0 0 20px; }
+        .confirm-box-footer { display: flex; justify-content: flex-end; gap: 10px; }
+        .btn-cancel-del {
+            padding: 9px 18px; border-radius: 8px; cursor: pointer;
+            background: #f6f8fa; border: 1px solid #d0d7de;
+            color: #1f2328; font-size: 0.88em; font-weight: 600;
+        }
+        .btn-cancel-del:hover { border-color: #8c959f; }
+        .btn-confirm-del {
+            padding: 9px 22px; border-radius: 8px; cursor: pointer;
+            background: linear-gradient(135deg,#cf222e,#f85149);
+            border: none; color: #fff;
+            font-size: 0.88em; font-weight: 600;
+            box-shadow: 0 2px 8px rgba(207,34,46,0.25);
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>{{ team.name }} - Team Members</h1>
+        <nav>
+            <a href="{{ url_for('admin_dashboard') }}" class="button">Back to Dashboard</a>
+            <a href="{{ url_for('team_dashboard', team_id=team.id) }}" class="button">Monthly Roster</a>
+            <a href="{{ url_for('weekly_roster', team_id=team.id) }}" class="button">Weekly Roster</a>
+            <a href="{{ url_for('logout') }}" class="button">Logout</a>
+        </nav>
+    </header>
+
+    <main>
+        <a href="{{ url_for('admin_dashboard') }}" class="back-link">← Back to Dashboard</a>
+
+        <h2>Team Members ({{ employees|length }})</h2>
+        <p style="color:#666;">Click an employee name to view and manage their schedule.</p>
+
+        <div class="employee-list">
+            {% for employee in employees %}
+                <div class="employee-card">
+                    <button class="member-edit-btn"
+                            onclick="openEditMember({{ employee.id }}, '{{ employee.name | e }}', '{{ employee.email | e }}', '{{ (employee.phone or '') | e }}')"
+                            title="Edit member">✏️</button>
+                    <button class="member-delete-btn"
+                            onclick="confirmDeleteMember({{ employee.id }}, '{{ employee.name | e }}')"
+                            title="Delete member">🗑</button>
+                    <h4 onclick="window.location.href='{{ url_for('employee_calendar', employee_id=employee.id, ref_team_id=team.id) }}'"
+                        style="cursor:pointer;padding-left:34px;padding-right:34px;">{{ employee.name }}</h4>
+                    <p>{{ employee.email }}</p>
+                    {% if employee.phone %}<p style="color:#555;font-size:0.85em;">📱 {{ employee.phone }}</p>{% endif %}
+                    <p style="color:#888;font-size:0.82em;">
+                        Teams: {% for t in employee.teams %}<span style="background:#e3f2fd;border-radius:3px;padding:1px 6px;margin:1px;display:inline-block;">{{ t.name }}</span>{% endfor %}
+                    </p>
+                    <p style="color:#007bff;margin-top:8px;cursor:pointer;"
+                       onclick="window.location.href='{{ url_for('employee_calendar', employee_id=employee.id, ref_team_id=team.id) }}'">
+                        Click to view calendar →
+                    </p>
+                    <span class="assign-toggle" onclick="toggleAssign({{ employee.id }})">+ Assign to another team</span>
+                    <div class="assign-form" id="assign-{{ employee.id }}">
+                        <select id="team-sel-{{ employee.id }}" multiple>
+                            {% for t in all_teams %}
+                                <option value="{{ t.id }}">{{ t.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <button onclick="assignTeams({{ employee.id }})">Assign</button>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        {% if employees|length == 0 %}
+            <p style="text-align:center;color:#999;margin-top:50px;">
+                No employees in this team yet.
+            </p>
+        {% endif %}
+    </main>
+
+    <!-- Edit Member Modal -->
+    <div id="edit-member-modal" class="confirm-modal" onclick="if(event.target===this)closeEditMember()" style="z-index:2400;">
+        <div class="confirm-box" style="width:440px;">
+            <div class="confirm-box-hdr" style="background:#f0f6ff;border-bottom-color:#bfdbfe;color:#1d4ed8;">✏️ Edit Member</div>
+            <div class="confirm-box-body">
+                <input type="hidden" id="edit-member-id">
+                <div style="margin-bottom:14px;">
+                    <label style="display:block;font-size:0.75em;font-weight:600;color:#656d76;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.5px;">Full Name</label>
+                    <input type="text" id="edit-member-name"
+                           style="width:100%;padding:9px 12px;border:1px solid #d0d7de;border-radius:8px;font-size:0.9em;outline:none;color:#1f2328;"
+                           placeholder="Full name">
+                </div>
+                <div style="margin-bottom:14px;">
+                    <label style="display:block;font-size:0.75em;font-weight:600;color:#656d76;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.5px;">Email</label>
+                    <input type="email" id="edit-member-email"
+                           style="width:100%;padding:9px 12px;border:1px solid #d0d7de;border-radius:8px;font-size:0.9em;outline:none;color:#1f2328;"
+                           placeholder="email@company.com">
+                </div>
+                <div style="margin-bottom:20px;">
+                    <label style="display:block;font-size:0.75em;font-weight:600;color:#656d76;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.5px;">Mobile Number</label>
+                    <input type="tel" id="edit-member-phone"
+                           style="width:100%;padding:9px 12px;border:1px solid #d0d7de;border-radius:8px;font-size:0.9em;outline:none;color:#1f2328;"
+                           placeholder="+60 12-345 6789">
+                </div>
+                <div class="confirm-box-footer">
+                    <button class="btn-cancel-del" onclick="closeEditMember()">Cancel</button>
+                    <button onclick="submitEditMember()"
+                            style="padding:9px 22px;border-radius:8px;cursor:pointer;background:linear-gradient(135deg,#0969da,#388bfd);border:none;color:#fff;font-size:0.88em;font-weight:600;box-shadow:0 2px 8px rgba(9,105,218,0.2);">
+                        Save changes
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="confirm-modal" class="confirm-modal" onclick="if(event.target===this)closeConfirm()">
+        <div class="confirm-box">
+            <div class="confirm-box-hdr">⚠️ Confirm Delete</div>
+            <div class="confirm-box-body">
+                <p id="confirm-msg"></p>
+                <div class="confirm-box-footer">
+                    <button class="btn-cancel-del" onclick="closeConfirm()">Cancel</button>
+                    <button class="btn-confirm-del" id="confirm-del-btn">Yes, Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="notification-bar" class="notification-bar"></div>
+
+    <script>
+        function toggleAssign(empId) {
+            const form = document.getElementById('assign-' + empId);
+            form.style.display = form.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function assignTeams(empId) {
+            const sel = document.getElementById('team-sel-' + empId);
+            const team_ids = Array.from(sel.selectedOptions).map(o => parseInt(o.value));
+            if (!team_ids.length) return;
+            fetch(`/api/assign_teams/${empId}`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({team_ids})
+            })
+            .then(r => r.json())
+            .then(d => {
+                showNotification(d.message, d.status);
+                if (d.status === 'success') setTimeout(() => window.location.reload(), 800);
+            });
+        }
+
+        function showNotification(msg, type) {
+            const bar = document.getElementById('notification-bar');
+            bar.textContent = msg;
+            bar.className = `notification-bar ${type}`;
+            setTimeout(() => { bar.className = 'notification-bar'; }, 3200);
+        }
+
+        /* ── Edit Member ── */
+        function openEditMember(empId, empName, empEmail, empPhone) {
+            document.getElementById('edit-member-id').value = empId;
+            document.getElementById('edit-member-name').value = empName;
+            document.getElementById('edit-member-email').value = empEmail;
+            document.getElementById('edit-member-phone').value = empPhone || '';
+            document.getElementById('edit-member-modal').classList.add('open');
+            setTimeout(() => document.getElementById('edit-member-name').focus(), 100);
+        }
+
+        function closeEditMember() {
+            document.getElementById('edit-member-modal').classList.remove('open');
+        }
+
+        function submitEditMember() {
+            const id    = document.getElementById('edit-member-id').value;
+            const name  = document.getElementById('edit-member-name').value.trim();
+            const email = document.getElementById('edit-member-email').value.trim();
+            const phone = document.getElementById('edit-member-phone').value.trim();
+            if (!name || !email) { showNotification('Name and email are required.', 'warning'); return; }
+            fetch(`/edit_employee/${id}`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({name, email, phone})
+            })
+            .then(r => r.json())
+            .then(d => {
+                showNotification(d.message, d.status);
+                if (d.status === 'success') { closeEditMember(); setTimeout(() => location.reload(), 900); }
+            })
+            .catch(() => showNotification('Update failed.', 'error'));
+        }
+
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Enter' && document.getElementById('edit-member-modal').classList.contains('open')) {
+                submitEditMember();
+            }
+        });
+
+        /* ── Delete confirmation ── */
+        let _deleteCallback = null;
+
+        function confirmDeleteMember(empId, empName) {
+            document.getElementById('confirm-msg').textContent =
+                `Delete employee "${empName}"? All their shifts and team assignments will be permanently removed.`;
+            _deleteCallback = () => {
+                fetch(`/delete_employee/${empId}`, { method: 'POST' })
+                    .then(r => r.json())
+                    .then(d => {
+                        closeConfirm();
+                        showNotification(d.message, d.status);
+                        if (d.status === 'success') setTimeout(() => location.reload(), 900);
+                    })
+                    .catch(() => showNotification('Delete failed.', 'error'));
+            };
+            document.getElementById('confirm-modal').classList.add('open');
+        }
+
+        function closeConfirm() {
+            document.getElementById('confirm-modal').classList.remove('open');
+            _deleteCallback = null;
+        }
+
+        document.getElementById('confirm-del-btn').addEventListener('click', () => {
+            if (_deleteCallback) _deleteCallback();
+        });
+    </script>
+</body>
+</html>

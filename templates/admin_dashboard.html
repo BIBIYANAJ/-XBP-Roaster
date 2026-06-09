@@ -1,0 +1,1639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Work Schedule Management</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: #f6f8fa;
+            color: #1f2328;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            min-height: 100vh;
+        }
+
+        /* ── Top App Bar ─────────────────────────────────────────── */
+        .app-bar {
+            background: #ffffff;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            height: 54px;
+            gap: 14px;
+            border-bottom: 1px solid #d0d7de;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 1px 3px rgba(31,35,40,0.06);
+        }
+        .app-bar .hamburger {
+            background: linear-gradient(135deg, #f97316, #ea580c);
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            width: 34px; height: 34px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+            font-size: 1em;
+            flex-shrink: 0;
+            box-shadow: 0 2px 8px rgba(249,115,22,0.3);
+            transition: all 0.2s;
+        }
+        .app-bar .hamburger:hover { transform: scale(1.05); box-shadow: 0 4px 14px rgba(249,115,22,0.45); }
+        .app-bar .app-title {
+            font-weight: 600;
+            font-size: 1em;
+            color: #1f2328;
+            letter-spacing: 0.2px;
+        }
+        .live-badge {
+            background: rgba(31,136,61,0.1);
+            color: #1a7f37;
+            border: 1px solid rgba(31,136,61,0.3);
+            font-size: 0.68em;
+            font-weight: 700;
+            padding: 3px 9px;
+            border-radius: 20px;
+            letter-spacing: 0.6px;
+            animation: pulse-green 2.5s ease-in-out infinite;
+        }
+        @keyframes pulse-green {
+            0%,100% { box-shadow: 0 0 0 0 rgba(31,136,61,0); }
+            50%      { box-shadow: 0 0 0 4px rgba(31,136,61,0.1); }
+        }
+        .app-bar .date-label {
+            font-size: 0.82em;
+            color: #656d76;
+            font-weight: 500;
+        }
+        .app-bar .more-btn {
+            background: transparent;
+            border: 1px solid #d0d7de;
+            border-radius: 7px;
+            color: #656d76;
+            width: 34px; height: 34px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+            font-size: 1em;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        .app-bar .more-btn:hover { background: rgba(207,34,46,0.06); border-color: #cf222e; color: #cf222e; }
+
+        /* ── Main content ────────────────────────────────────────── */
+        .page-content { padding: 22px 24px 40px; max-width: 1400px; margin: 0 auto; }
+
+        /* ── Stats row ───────────────────────────────────────────── */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+            margin-bottom: 22px;
+        }
+        .stat-card {
+            background: #ffffff;
+            border: 1px solid #d0d7de;
+            border-radius: 14px;
+            padding: 18px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            border-radius: 14px 14px 0 0;
+        }
+        .stat-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(31,35,40,0.1); }
+        .stat-card-emp::before  { background: linear-gradient(90deg,#cf222e,#f85149); }
+        .stat-card-team::before { background: linear-gradient(90deg,#9a6700,#d4a72c); }
+        .stat-card-shift::before{ background: linear-gradient(90deg,#1a7f37,#2da44e); }
+        .stat-card-rost::before { background: linear-gradient(90deg,#0969da,#388bfd); }
+
+        .stat-card .stat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+        .stat-card .stat-icon {
+            font-size: 1.05em;
+            width: 38px; height: 38px;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 10px;
+            flex-shrink: 0;
+        }
+        .stat-card .stat-num {
+            font-size: 2.2em;
+            font-weight: 700;
+            line-height: 1;
+            color: #1f2328;
+            letter-spacing: -1px;
+        }
+        .stat-card .stat-label {
+            font-size: 0.75em;
+            color: #656d76;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+        }
+        .stat-card-emp  .stat-icon { background: rgba(207,34,46,0.08);  color: #cf222e; }
+        .stat-card-team .stat-icon { background: rgba(154,103,0,0.08);  color: #9a6700; }
+        .stat-card-shift .stat-icon{ background: rgba(26,127,55,0.08);  color: #1a7f37; }
+        .stat-card-rost .stat-icon { background: rgba(9,105,218,0.08);  color: #0969da; }
+
+        /* ── Action buttons row ─────────────────────────────────── */
+        .action-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 22px;
+        }
+        .action-btn {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 10px;
+            font-size: 0.88em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            letter-spacing: 0.2px;
+        }
+        .action-btn:hover { transform: translateY(-2px); }
+        .action-btn:active { transform: translateY(0) scale(0.98); }
+        .btn-primary {
+            background: linear-gradient(135deg, #1a7f37, #2da44e);
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(26,127,55,0.2);
+        }
+        .btn-primary:hover { background: linear-gradient(135deg,#2da44e,#3fb950); box-shadow: 0 6px 16px rgba(26,127,55,0.3); }
+        .btn-secondary {
+            background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+            color: #1d4ed8;
+            border: 1px solid #93c5fd;
+        }
+        .btn-secondary:hover { background: linear-gradient(135deg, #bfdbfe, #93c5fd); border-color: #60a5fa; color: #1d4ed8; box-shadow: 0 3px 10px rgba(59,130,246,0.2); }
+        .btn-assign {
+            background: linear-gradient(135deg, #6e40c9, #8250df);
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(130,80,223,0.2);
+        }
+        .btn-assign:hover { background: linear-gradient(135deg,#8250df,#a371f7); box-shadow: 0 6px 16px rgba(130,80,223,0.3); }
+        .action-btn .ab-icon {
+            width: 26px; height: 26px;
+            background: rgba(255,255,255,0.25);
+            border-radius: 6px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.95em;
+        }
+        .btn-secondary .ab-icon { background: rgba(255,255,255,0.5); }
+
+        /* ── Modal form overlay ──────────────────────────────────── */
+        .form-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(31,35,40,0.5);
+            backdrop-filter: blur(6px);
+            z-index: 1500;
+            align-items: center;
+            justify-content: center;
+        }
+        .form-modal.open { display: flex; }
+        .form-card {
+            background: #ffffff;
+            border: 1px solid #d0d7de;
+            border-radius: 10px;
+            overflow: hidden;
+            width: 340px;
+            max-width: 95vw;
+            flex: none;
+            padding: 0;
+            min-width: unset;
+            box-shadow: 0 8px 28px rgba(31,35,40,0.18);
+            animation: popIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes popIn {
+            from { transform: scale(0.94) translateY(12px); opacity: 0; }
+            to   { transform: scale(1) translateY(0); opacity: 1; }
+        }
+        .form-card-hdr {
+            padding: 11px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #d0d7de;
+            background: #f6f8fa;
+        }
+        .form-card-hdr .hdr-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9em;
+            font-weight: 600;
+            color: #1f2328;
+        }
+        .form-card-hdr .close-btn {
+            background: transparent;
+            border: 1px solid #d0d7de;
+            border-radius: 6px;
+            color: #656d76;
+            width: 28px; height: 28px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+            font-size: 1.1em;
+            transition: all 0.2s;
+        }
+        .form-card-hdr .close-btn:hover { background: rgba(207,34,46,0.06); border-color: #cf222e; color: #cf222e; }
+        .form-card-body { padding: 14px 16px; }
+
+        /* ── Panel (roster search) ───────────────────────────────── */
+        .panel {
+            background: #ffffff;
+            border: 1px solid #d0d7de;
+            border-radius: 14px;
+            overflow: hidden;
+            box-shadow: 0 1px 4px rgba(31,35,40,0.06);
+        }
+
+        /* ── Form elements ───────────────────────────────────────── */
+        .field-label {
+            font-size: 0.75em;
+            font-weight: 600;
+            color: #656d76;
+            margin-bottom: 6px;
+            display: block;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .dark-input, .dark-select {
+            width: 100%;
+            background: #ffffff;
+            border: 1px solid #d0d7de;
+            border-radius: 8px;
+            color: #1f2328;
+            padding: 9px 12px;
+            font-size: 0.9em;
+            outline: none;
+            transition: all 0.2s;
+        }
+        .dark-input::placeholder { color: #8c959f; }
+        .dark-input:focus, .dark-select:focus {
+            border-color: #0969da;
+            box-shadow: 0 0 0 3px rgba(9,105,218,0.12);
+        }
+        .dark-select option { background: #ffffff; color: #1f2328; }
+        .dark-select[multiple] { height: 80px; }
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+        .one-col { margin-bottom: 14px; }
+        .form-card .two-col { grid-template-columns: 1fr; gap: 8px; }
+
+        /* ── Roster search ───────────────────────────────────────── */
+        .search-full { margin-bottom: 22px; }
+        .search-hdr {
+            padding: 14px 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.92em;
+            font-weight: 600;
+            color: #1f2328;
+            border-bottom: 1px solid #d0d7de;
+            background: #f6f8fa;
+        }
+        .search-hdr .sub { font-size: 0.82em; font-weight: 400; color: #656d76; margin-left: 4px; }
+        .search-body { padding: 18px 20px; }
+        .search-row {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr 1fr auto;
+            gap: 14px;
+            align-items: flex-end;
+        }
+        .search-btn {
+            background: linear-gradient(135deg, #0969da, #388bfd);
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            padding: 9px 18px;
+            font-size: 0.88em;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            transition: all 0.2s;
+            white-space: nowrap;
+            box-shadow: 0 2px 8px rgba(9,105,218,0.2);
+        }
+        .search-btn:hover { transform: translateY(-1px); box-shadow: 0 5px 14px rgba(9,105,218,0.35); }
+
+        /* ── Date picker chips ───────────────────────────────────── */
+        .date-picker-btn {
+            width: 100%;
+            background: #ffffff;
+            border: 1px solid #d0d7de;
+            border-radius: 8px;
+            color: #1f2328;
+            padding: 9px 12px;
+            font-size: 0.9em;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .date-picker-btn:hover { border-color: #8c959f; background: #f6f8fa; }
+        .date-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
+        .date-chip {
+            background: rgba(9,105,218,0.07);
+            border: 1px solid rgba(9,105,218,0.2);
+            border-radius: 20px;
+            padding: 2px 10px;
+            font-size: 0.73em;
+            color: #0969da;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .date-chip .rm { cursor: pointer; color: #8c959f; font-weight: bold; }
+        .date-chip .rm:hover { color: #cf222e; }
+
+        /* ── Search results ──────────────────────────────────────── */
+        .search-results {
+            background: #f6f8fa;
+            border: 1px solid #d0d7de;
+            border-radius: 8px;
+            padding: 14px 16px;
+            margin-top: 14px;
+            font-size: 0.88em;
+            display: none;
+        }
+
+        /* ── Section title ───────────────────────────────────────── */
+        .section-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 28px 0 14px;
+        }
+        .section-badge {
+            background: linear-gradient(135deg, #9a6700, #d4a72c);
+            color: #fff;
+            font-size: 0.7em;
+            font-weight: 800;
+            padding: 4px 12px;
+            border-radius: 20px;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+        }
+        .section-title {
+            font-size: 1.05em;
+            font-weight: 600;
+            color: #1f2328;
+        }
+        .section-row::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: linear-gradient(90deg, #d0d7de, transparent);
+        }
+
+        /* ── Team grid ───────────────────────────────────────────── */
+        .team-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+            gap: 14px;
+        }
+        .team-card {
+            background: #ffffff;
+            border: 1px solid #d0d7de;
+            border-radius: 14px;
+            overflow: hidden;
+            transition: all 0.25s ease;
+            position: relative;
+        }
+        .team-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+        }
+        .team-card:nth-child(4n+1)::before { background: linear-gradient(90deg,#0969da,#388bfd); }
+        .team-card:nth-child(4n+2)::before { background: linear-gradient(90deg,#1a7f37,#2da44e); }
+        .team-card:nth-child(4n+3)::before { background: linear-gradient(90deg,#8250df,#a371f7); }
+        .team-card:nth-child(4n+4)::before { background: linear-gradient(90deg,#9a6700,#d4a72c); }
+
+        .team-card:nth-child(4n+1):hover { border-color: #0969da; box-shadow: 0 6px 20px rgba(9,105,218,0.12); }
+        .team-card:nth-child(4n+2):hover { border-color: #1a7f37; box-shadow: 0 6px 20px rgba(26,127,55,0.12); }
+        .team-card:nth-child(4n+3):hover { border-color: #8250df; box-shadow: 0 6px 20px rgba(130,80,223,0.12); }
+        .team-card:nth-child(4n+4):hover { border-color: #9a6700; box-shadow: 0 6px 20px rgba(154,103,0,0.12); }
+        .team-card:hover { transform: translateY(-4px); }
+
+        .card-top {
+            padding: 22px 18px 16px;
+            text-align: center;
+        }
+        .card-top h3 { font-size: 0.95em; font-weight: 600; color: #1f2328; margin-bottom: 8px; }
+        .member-pill {
+            background: #f6f8fa;
+            border: 1px solid #d0d7de;
+            color: #656d76;
+            font-size: 0.72em;
+            font-weight: 500;
+            padding: 3px 10px;
+            border-radius: 20px;
+            display: inline-block;
+        }
+        .card-bottom {
+            background: #f6f8fa;
+            display: flex;
+            border-top: 1px solid #d0d7de;
+        }
+        .card-bottom a {
+            flex: 1;
+            text-align: center;
+            padding: 11px 8px;
+            font-size: 0.82em;
+            font-weight: 600;
+            text-decoration: none;
+            color: #656d76;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+        .card-bottom a:first-child { border-right: 1px solid #d0d7de; }
+        .card-bottom a:hover { color: #0969da; background: rgba(9,105,218,0.04); }
+
+        .card-edit-btn {
+            position: absolute;
+            top: 8px; left: 8px;
+            background: transparent;
+            border: 1px solid #d0d7de;
+            border-radius: 6px;
+            color: #8c959f;
+            width: 28px; height: 28px;
+            cursor: pointer;
+            font-size: 0.78em;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.2s;
+            z-index: 10;
+            line-height: 1;
+        }
+        .card-edit-btn:hover { background: rgba(9,105,218,0.08); border-color: #0969da; color: #0969da; }
+
+        .card-delete-btn {
+            position: absolute;
+            top: 8px; right: 8px;
+            background: transparent;
+            border: 1px solid #d0d7de;
+            border-radius: 6px;
+            color: #8c959f;
+            width: 28px; height: 28px;
+            cursor: pointer;
+            font-size: 0.85em;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.2s;
+            z-index: 10;
+            line-height: 1;
+        }
+        .card-delete-btn:hover { background: rgba(207,34,46,0.08); border-color: #cf222e; color: #cf222e; }
+
+        .confirm-modal {
+            display: none; position: fixed; inset: 0;
+            background: rgba(31,35,40,0.55); backdrop-filter: blur(6px);
+            z-index: 2500; align-items: center; justify-content: center;
+        }
+        .confirm-modal.open { display: flex; }
+        .confirm-box {
+            background: #fff; border: 1px solid #d0d7de; border-radius: 14px;
+            width: 400px; max-width: 94vw;
+            box-shadow: 0 16px 48px rgba(31,35,40,0.22);
+            animation: popIn 0.22s cubic-bezier(0.16,1,0.3,1);
+            overflow: hidden;
+        }
+        .confirm-box-hdr {
+            padding: 14px 18px; background: #fff8f0;
+            border-bottom: 1px solid #fde8d0;
+            display: flex; align-items: center; gap: 10px;
+            font-size: 1em; font-weight: 600; color: #92400e;
+        }
+        .confirm-box-body { padding: 20px 18px; }
+        .confirm-box-body p { color: #1f2328; font-size: 0.92em; line-height: 1.55; margin: 0 0 20px; }
+        .confirm-box-footer { display: flex; justify-content: flex-end; gap: 10px; }
+        .btn-cancel-del {
+            padding: 9px 18px; border-radius: 8px; cursor: pointer;
+            background: #f6f8fa; border: 1px solid #d0d7de;
+            color: #1f2328; font-size: 0.88em; font-weight: 600; transition: all 0.2s;
+        }
+        .btn-cancel-del:hover { border-color: #8c959f; background: #eaeef2; }
+        .btn-confirm-del {
+            padding: 9px 22px; border-radius: 8px; cursor: pointer;
+            background: linear-gradient(135deg,#cf222e,#f85149);
+            border: none; color: #fff;
+            font-size: 0.88em; font-weight: 600;
+            box-shadow: 0 2px 8px rgba(207,34,46,0.25); transition: all 0.2s;
+        }
+        .btn-confirm-del:hover { box-shadow: 0 4px 14px rgba(207,34,46,0.4); }
+
+        /* ── Picker overlay ──────────────────────────────────────── */
+        .picker-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(31,35,40,0.5);
+            backdrop-filter: blur(6px);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+        .picker-overlay.open { display: flex; }
+        .picker-box {
+            background: #ffffff;
+            border: 1px solid #d0d7de;
+            border-radius: 14px;
+            padding: 22px;
+            width: 320px;
+            box-shadow: 0 16px 48px rgba(31,35,40,0.2);
+            animation: popIn 0.22s cubic-bezier(0.16,1,0.3,1);
+        }
+        .picker-hdr {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .picker-hdr strong { font-size: 0.95em; color: #1f2328; }
+        .picker-hdr button { background: none; border: none; font-size: 1.3em; cursor: pointer; color: #656d76; transition: color 0.2s; }
+        .picker-hdr button:hover { color: #cf222e; }
+        .picker-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+            background: #f6f8fa;
+            border: 1px solid #d0d7de;
+            border-radius: 8px;
+            padding: 3px;
+        }
+        .picker-nav button {
+            background: transparent;
+            color: #1f2328;
+            border: none;
+            border-radius: 6px;
+            padding: 5px 14px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background 0.2s;
+        }
+        .picker-nav button:hover { background: #eaeef2; }
+        .picker-nav span { font-size: 0.88em; color: #1f2328; font-weight: 600; }
+        .picker-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 3px; margin-bottom: 14px; }
+        .p-hdr { text-align: center; font-size: 0.7em; font-weight: 600; color: #656d76; padding: 4px 0; }
+        .p-day {
+            text-align: center;
+            padding: 7px 3px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.82em;
+            color: #1f2328;
+            transition: all 0.15s;
+            user-select: none;
+        }
+        .p-day:hover { background: #eaeef2; }
+        .p-day.p-sel { background: linear-gradient(135deg,#0969da,#388bfd); color: #fff; font-weight: 700; box-shadow: 0 2px 8px rgba(9,105,218,0.3); }
+        .p-day.p-empty { cursor: default; }
+        .p-day.p-empty:hover { background: transparent; }
+        .picker-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid #d0d7de;
+            padding-top: 14px;
+        }
+        .picker-footer span { font-size: 0.78em; color: #656d76; font-weight: 500; }
+        .picker-footer button {
+            border: 1px solid transparent;
+            border-radius: 6px;
+            padding: 7px 14px;
+            cursor: pointer;
+            font-size: 0.82em;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .btn-clr  { background: #f6f8fa; border-color: #d0d7de; color: #1f2328; }
+        .btn-clr:hover { border-color: #8c959f; background: #eaeef2; }
+        .btn-done { background: linear-gradient(135deg,#1a7f37,#2da44e); color: #fff; margin-left: 8px; box-shadow: 0 2px 8px rgba(26,127,55,0.2); }
+        .btn-done:hover { box-shadow: 0 4px 14px rgba(26,127,55,0.35); }
+
+        /* ── Notification ────────────────────────────────────────── */
+        .notification-bar {
+            position: fixed;
+            bottom: 24px; right: 24px;
+            background: #ffffff;
+            border: 1px solid #d0d7de;
+            color: #1f2328;
+            padding: 12px 18px;
+            border-radius: 10px;
+            font-size: 0.88em;
+            font-weight: 500;
+            box-shadow: 0 8px 24px rgba(31,35,40,0.15);
+            transform: translateY(150%);
+            transition: transform 0.3s cubic-bezier(0.16,1,0.3,1);
+            z-index: 3000;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .notification-bar.show { transform: translateY(0); }
+        .notification-bar.success { border-left: 3px solid #1a7f37; }
+        .notification-bar.error   { border-left: 3px solid #cf222e; }
+        .notification-bar.warning { border-left: 3px solid #9a6700; }
+
+        /* ── Override global style.css dark form-card rules ─────── */
+        .form-card input[type="text"],
+        .form-card input[type="email"],
+        .form-card input[type="password"],
+        .form-card select,
+        .dark-input,
+        .dark-select {
+            background: #ffffff !important;
+            background-color: #ffffff !important;
+            border: 1px solid #d0d7de !important;
+            color: #1f2328 !important;
+            border-radius: 8px !important;
+            padding: 9px 12px !important;
+            margin-bottom: 0 !important;
+            box-shadow: none !important;
+        }
+        .form-card input[type="text"]:focus,
+        .form-card input[type="email"]:focus,
+        .form-card select:focus,
+        .dark-input:focus,
+        .dark-select:focus {
+            border-color: #0969da !important;
+            box-shadow: 0 0 0 3px rgba(9,105,218,0.12) !important;
+            outline: none !important;
+        }
+        .form-card input::placeholder,
+        .dark-input::placeholder { color: #8c959f !important; }
+        .form-card select option,
+        .dark-select option { background: #ffffff !important; color: #1f2328 !important; }
+        #emp-search-input { padding-left: 32px !important; }
+
+        /* ── Today's Overview ────────────────────────────────────── */
+        .today-card { display: none; }
+        .today-card.open { display: block; }
+        .today-glance-btn {
+            background: #ffffff;
+            border: 1px solid #d0d7de;
+            border-radius: 7px;
+            color: #1f2328;
+            padding: 0 14px;
+            height: 34px;
+            display: flex; align-items: center; gap: 7px;
+            cursor: pointer;
+            font-size: 0.82em;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(31,35,40,0.08);
+        }
+        .today-glance-btn:hover { background: #f6f8fa; border-color: #8c959f; }
+        .today-glance-btn .tg-dot {
+            width: 7px; height: 7px; border-radius: 50%;
+            background: #3fb950;
+            box-shadow: 0 0 0 0 rgba(63,185,80,0.5);
+            animation: pulse-live 2s ease-in-out infinite;
+            flex-shrink: 0;
+        }
+        .today-card {
+            background: #ffffff;
+            border: 1px solid #d0d7de;
+            border-radius: 14px;
+            overflow: hidden;
+            margin-bottom: 22px;
+            box-shadow: 0 2px 8px rgba(31,35,40,0.06);
+        }
+        .today-card-hdr {
+            background: #f6f8fa;
+            border-bottom: 1px solid #d0d7de;
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .today-card-hdr .hdr-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .today-card-hdr .pulse-dot {
+            width: 9px; height: 9px;
+            background: #3fb950;
+            border-radius: 50%;
+            box-shadow: 0 0 0 0 rgba(63,185,80,0.5);
+            animation: pulse-live 2s ease-in-out infinite;
+            flex-shrink: 0;
+        }
+        @keyframes pulse-live {
+            0%,100% { box-shadow: 0 0 0 0 rgba(63,185,80,0.5); }
+            50%      { box-shadow: 0 0 0 6px rgba(63,185,80,0); }
+        }
+        .today-card-hdr .hdr-title {
+            font-size: 0.95em;
+            font-weight: 700;
+            color: #1f2328;
+            letter-spacing: 0.2px;
+        }
+        .today-card-hdr .hdr-date {
+            font-size: 0.82em;
+            color: #656d76;
+            font-weight: 500;
+        }
+        .today-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 0;
+        }
+        @media (max-width: 1100px) { .today-grid { grid-template-columns: repeat(4, 1fr); } }
+        @media (max-width: 700px)  { .today-grid { grid-template-columns: repeat(2, 1fr); } }
+
+        .shift-col {
+            padding: 14px 14px 16px;
+            border-right: 1px solid #d0d7de;
+            min-height: 120px;
+        }
+        .shift-col:last-child { border-right: none; }
+
+        .shift-col-hdr {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid;
+        }
+        .shift-col-hdr .shift-badge {
+            width: 26px; height: 26px;
+            border-radius: 7px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.78em;
+            font-weight: 800;
+            color: #fff;
+            flex-shrink: 0;
+        }
+        .shift-col-hdr .shift-name {
+            font-size: 0.72em;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #1f2328;
+            line-height: 1.2;
+        }
+        .shift-col-hdr .shift-count {
+            margin-left: auto;
+            font-size: 0.72em;
+            font-weight: 700;
+            padding: 1px 7px;
+            border-radius: 20px;
+            color: #fff;
+            flex-shrink: 0;
+        }
+
+        /* per-shift accent colours */
+        .sc-M .shift-col-hdr { border-color: #d4a72c; }
+        .sc-M .shift-badge   { background: #d4a72c; }
+        .sc-M .shift-count   { background: #d4a72c; }
+
+        .sc-A .shift-col-hdr { border-color: #d15704; }
+        .sc-A .shift-badge   { background: #d15704; }
+        .sc-A .shift-count   { background: #d15704; }
+
+        .sc-N .shift-col-hdr { border-color: #1f6feb; }
+        .sc-N .shift-badge   { background: #1f6feb; }
+        .sc-N .shift-count   { background: #1f6feb; }
+
+        .sc-L .shift-col-hdr { border-color: #cf222e; }
+        .sc-L .shift-badge   { background: #cf222e; }
+        .sc-L .shift-count   { background: #cf222e; }
+
+        .sc-O .shift-col-hdr { border-color: #1a7f37; }
+        .sc-O .shift-badge   { background: #1a7f37; }
+        .sc-O .shift-count   { background: #1a7f37; }
+
+        .sc-G .shift-col-hdr { border-color: #8250df; }
+        .sc-G .shift-badge   { background: #8250df; }
+        .sc-G .shift-count   { background: #8250df; }
+
+        .sc-U .shift-col-hdr { border-color: #8c959f; }
+        .sc-U .shift-badge   { background: #8c959f; }
+        .sc-U .shift-count   { background: #8c959f; }
+
+        .emp-pill-list {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .emp-pill {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 8px;
+            border-radius: 7px;
+            font-size: 0.76em;
+            font-weight: 500;
+            color: #1f2328;
+            background: #f6f8fa;
+            border: 1px solid #d0d7de;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.15s;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .emp-pill:hover { border-color: #8c959f; background: #eaeef2; transform: translateX(2px); }
+        .emp-pill .emp-avatar {
+            width: 18px; height: 18px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.65em;
+            font-weight: 800;
+            color: #fff;
+            flex-shrink: 0;
+        }
+        .no-emp { font-size: 0.76em; color: #8c959f; font-style: italic; padding: 4px 0; }
+
+        @media (max-width: 800px) {
+            .stats-row { grid-template-columns: repeat(3, 1fr); }
+            .search-row { grid-template-columns: 1fr 1fr; }
+            .search-row .search-btn { grid-column: 1/-1; justify-content: center; }
+        }
+        @media (max-width: 500px) {
+            .stats-row { grid-template-columns: 1fr; }
+            .search-row { grid-template-columns: 1fr; }
+            .action-row { flex-direction: column; }
+            .action-btn { justify-content: center; }
+            .page-content { padding: 16px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ── App Bar ──────────────────────────────────────────────────────── -->
+<div class="app-bar">
+    <button class="hamburger">☰</button>
+    <span class="app-title">Work Schedule Management</span>
+    <span class="live-badge">LIVE</span>
+    <span class="date-label" id="today-label"></span>
+    <div style="flex:1"></div>
+    <button class="today-glance-btn" onclick="toggleGlance()" id="glance-btn">
+        <span class="tg-dot"></span> Today at a Glance
+    </button>
+    <a href="{{ url_for('logout') }}" class="more-btn" title="Logout" style="text-decoration:none;">⏻</a>
+</div>
+
+<!-- ── Page Content ─────────────────────────────────────────────────── -->
+<div class="page-content">
+
+    <!-- Stats row -->
+    <div class="stats-row">
+        <div class="stat-card stat-card-emp">
+            <div class="stat-header">
+                <div class="stat-label">Total employees</div>
+                <div class="stat-icon">👤</div>
+            </div>
+            <div class="stat-num">{{ total_employees }}</div>
+        </div>
+        <div class="stat-card stat-card-team">
+            <div class="stat-header">
+                <div class="stat-label">Active teams</div>
+                <div class="stat-icon">⊞</div>
+            </div>
+            <div class="stat-num">{{ active_teams }}</div>
+        </div>
+        <div class="stat-card stat-card-shift">
+            <div class="stat-header">
+                <div class="stat-label">Shifts today</div>
+                <div class="stat-icon" style="background:rgba(63,185,80,0.12);color:#3fb950;">🕐</div>
+            </div>
+            <div class="stat-num">{{ shifts_today }}</div>
+        </div>
+    </div>
+
+    <!-- Today's Overview -->
+    {% set shift_meta = [
+        ('M', 'Morning',   '#d4a72c'),
+        ('A', 'Afternoon', '#d15704'),
+        ('N', 'Night',     '#1f6feb'),
+        ('L', 'Leave',     '#cf222e'),
+        ('O', 'OFF',       '#1a7f37'),
+        ('G', 'General',   '#8250df'),
+    ] %}
+    <div class="today-card">
+        <div class="today-card-hdr">
+            <div class="hdr-left">
+                <div class="pulse-dot"></div>
+                <span class="hdr-title">Today at a Glance</span>
+            </div>
+            <span class="hdr-date" id="today-full-date"></span>
+        </div>
+        <div class="today-grid">
+            {% for code, label, color in shift_meta %}
+            {% set emps = today_by_shift.get(code, []) %}
+            <div class="shift-col sc-{{ code }}">
+                <div class="shift-col-hdr">
+                    <div class="shift-badge">{{ code }}</div>
+                    <div class="shift-name">{{ label }}</div>
+                    <div class="shift-count">{{ emps|length }}</div>
+                </div>
+                <div class="emp-pill-list">
+                    {% if emps %}
+                        {% for emp in emps %}
+                        <a href="{{ url_for('employee_calendar', employee_id=emp.id) }}" class="emp-pill">
+                            <div class="emp-avatar" style="background:{{ color }};">{{ emp.name[0]|upper }}</div>
+                            {{ emp.name.split(' ')[0] }}
+                        </a>
+                        {% endfor %}
+                    {% else %}
+                        <span class="no-emp">None</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+
+            <!-- Unassigned column -->
+            <div class="shift-col sc-U">
+                <div class="shift-col-hdr">
+                    <div class="shift-badge">?</div>
+                    <div class="shift-name">Unassigned</div>
+                    <div class="shift-count">{{ unassigned|length }}</div>
+                </div>
+                <div class="emp-pill-list">
+                    {% if unassigned %}
+                        {% for emp in unassigned %}
+                        <a href="{{ url_for('employee_calendar', employee_id=emp.id) }}" class="emp-pill">
+                            <div class="emp-avatar" style="background:#8c959f;">{{ emp.name[0]|upper }}</div>
+                            {{ emp.name.split(' ')[0] }}
+                        </a>
+                        {% endfor %}
+                    {% else %}
+                        <span class="no-emp">All assigned ✓</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action buttons -->
+    <div class="action-row">
+        <button class="action-btn btn-primary" onclick="openModal('team-modal')">
+            <span class="ab-icon">👥</span> Create new team
+        </button>
+        <button class="action-btn btn-secondary" onclick="openModal('emp-modal')">
+            <span class="ab-icon">➕</span> Add new employee
+        </button>
+        <button class="action-btn btn-assign" onclick="openModal('assign-modal')">
+            <span class="ab-icon">🔗</span> Assign employee to teams
+        </button>
+    </div>
+
+    <!-- Roster Search -->
+    <div class="panel search-full">
+        <div class="search-hdr">
+            🔍 Roster search
+            <span class="sub">— pick dates, team &amp; shift</span>
+        </div>
+        <div class="search-body">
+            <div class="search-row">
+                <div>
+                    <label class="field-label">Date</label>
+                    <button class="date-picker-btn" onclick="openDatePicker()">
+                        📅 <span id="date-btn-label">Select dates</span>
+                    </button>
+                    <div class="date-chips" id="date-chips"></div>
+                </div>
+                <div>
+                    <label class="field-label">Team</label>
+                    <select id="s-team" class="dark-select">
+                        <option value="">— All teams —</option>
+                        {% for team in teams %}
+                            <option value="{{ team.id }}">{{ team.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="field-label">Shift</label>
+                    <select id="s-shift" class="dark-select">
+                        <option value="">— Any shift —</option>
+                        <option value="M">Morning (M)</option>
+                        <option value="A">Afternoon (A)</option>
+                        <option value="N">Night (N)</option>
+                        <option value="L">Leave (L)</option>
+                        <option value="O">OFF (O)</option>
+                        <option value="G">General (G)</option>
+                    </select>
+                </div>
+                <button class="search-btn" onclick="doSearch()">🔍 Search</button>
+            </div>
+            <div id="search-results" class="search-results"></div>
+        </div>
+    </div>
+
+    <!-- Teams Section -->
+    <div class="section-row">
+        <span class="section-badge">Teams</span>
+        <span class="section-title">Select a team</span>
+    </div>
+
+    <div class="team-grid">
+        {% for team in teams %}
+        <div class="team-card">
+            <button class="card-edit-btn" onclick="openEditTeam({{ team.id }},'{{ team.name | e }}')" title="Edit team name">✏️</button>
+            <button class="card-delete-btn" onclick="confirmDelete('team',{{ team.id }},'{{ team.name | e }}')" title="Delete team">🗑</button>
+            <div class="card-top">
+                <h3>{{ team.name }}</h3>
+                <span class="member-pill">{{ team_counts.get(team.id, 0) }} members</span>
+            </div>
+            <div class="card-bottom">
+                <a href="{{ url_for('team_members', team_id=team.id) }}">👤 Members</a>
+                <a href="{{ url_for('team_dashboard', team_id=team.id) }}">📅 Roster</a>
+            </div>
+        </div>
+        {% endfor %}
+
+        {% if teams|length == 0 %}
+        <p style="color:#8b949e;grid-column:1/-1;text-align:center;padding:40px;font-size:0.95em;background:#161b22;border:1px dashed #30363d;border-radius:12px;">
+            No teams yet. Create one above.
+        </p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Create Team Modal -->
+<div id="team-modal" class="form-modal" onclick="modalOverlayClick(event,'team-modal')">
+    <div class="form-card">
+        <div class="form-card-hdr">
+            <div class="hdr-left">👥 Create new team</div>
+            <button class="close-btn" onclick="closeModal('team-modal')">×</button>
+        </div>
+        <div class="form-card-body">
+            <form id="create-team-form">
+                <div class="one-col">
+                    <label class="field-label">Team Name</label>
+                    <input type="text" name="team_name" class="dark-input" placeholder="e.g. Sales Team" required autofocus>
+                </div>
+                <div style="display:flex;justify-content:flex-end;margin-top:12px;gap:8px;">
+                    <button type="button" onclick="closeModal('team-modal')" style="padding:6px 14px;border-radius:7px;cursor:pointer;background:#f6f8fa;border:1px solid #d0d7de;color:#1f2328;font-size:0.83em;font-weight:600;transition:all 0.2s;">Cancel</button>
+                    <button type="submit" style="padding:6px 16px;border-radius:7px;font-weight:600;cursor:pointer;border:none;background:linear-gradient(135deg,#1a7f37,#2da44e);color:#fff;font-size:0.83em;box-shadow:0 2px 8px rgba(26,127,55,0.2);">Create team</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Employee Modal -->
+<div id="emp-modal" class="form-modal" onclick="modalOverlayClick(event,'emp-modal')">
+    <div class="form-card">
+        <div class="form-card-hdr">
+            <div class="hdr-left">➕ Add new employee</div>
+            <button class="close-btn" onclick="closeModal('emp-modal')">×</button>
+        </div>
+        <div class="form-card-body">
+            <form id="create-employee-form">
+                <div class="one-col">
+                    <label class="field-label">Full Name</label>
+                    <input type="text" name="name" class="dark-input" placeholder="Full name" required>
+                </div>
+                <div class="one-col">
+                    <label class="field-label">Email</label>
+                    <input type="email" name="email" class="dark-input" placeholder="email@company.com" required>
+                </div>
+                <div class="one-col">
+                    <label class="field-label">Mobile Number</label>
+                    <input type="tel" name="phone" class="dark-input" placeholder="+60 12-345 6789">
+                </div>
+                <div class="one-col">
+                    <label class="field-label">Teams (Hold Ctrl to multi-select)</label>
+                    <select name="team_ids" class="dark-select" multiple>
+                        {% for team in teams %}
+                            <option value="{{ team.id }}">{{ team.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div style="display:flex;justify-content:flex-end;margin-top:12px;gap:8px;">
+                    <button type="button" onclick="closeModal('emp-modal')" style="padding:6px 14px;border-radius:7px;cursor:pointer;background:#f6f8fa;border:1px solid #d0d7de;color:#1f2328;font-size:0.83em;font-weight:600;transition:all 0.2s;">Cancel</button>
+                    <button type="submit" style="padding:6px 16px;border-radius:7px;font-weight:600;cursor:pointer;border:none;background:linear-gradient(135deg,#0969da,#388bfd);color:#fff;font-size:0.83em;box-shadow:0 2px 8px rgba(9,105,218,0.2);">Add employee</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Assign Employee to Teams Modal -->
+<div id="assign-modal" class="form-modal" onclick="modalOverlayClick(event,'assign-modal')">
+    <div class="form-card">
+        <div class="form-card-hdr" style="border-left: 3px solid #8250df;">
+            <div class="hdr-left">🔗 Assign existing employee to teams</div>
+            <button class="close-btn" onclick="closeModal('assign-modal')">×</button>
+        </div>
+        <div class="form-card-body">
+
+            <!-- Step 1: Pick employee (searchable combobox) -->
+            <div class="one-col" style="position:relative;">
+                <label class="field-label">Select Employee</label>
+                <div style="position:relative;">
+                    <span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:#8c959f;font-size:0.95em;pointer-events:none;">🔍</span>
+                    <input type="text" id="emp-search-input" class="dark-input"
+                           placeholder="Type a name to search…"
+                           autocomplete="off"
+                           oninput="filterEmployees()"
+                           onfocus="showEmpDropdown()"
+                           style="padding-left:32px;"
+                    >
+                    <input type="hidden" id="assign-employee">
+                </div>
+                <!-- Dropdown list -->
+                <div id="emp-dropdown" style="
+                    display:none;
+                    position:absolute;
+                    top:100%;
+                    left:0; right:0;
+                    background:#fff;
+                    border:1px solid #d0d7de;
+                    border-top:none;
+                    border-radius:0 0 8px 8px;
+                    max-height:200px;
+                    overflow-y:auto;
+                    z-index:999;
+                    box-shadow:0 8px 20px rgba(31,35,40,0.12);
+                "></div>
+            </div>
+            <!-- Hidden employee data -->
+            <script id="emp-data" type="application/json">
+                [{% for emp in employees %}{"id":{{ emp.id }},"name":{{ emp.name | tojson }},"email":{{ (emp.email or '') | tojson }},"phone":{{ (emp.phone or '') | tojson }},"teams":[{% for t in emp.teams %}{{ t.id }}{% if not loop.last %},{% endif %}{% endfor %}]}{% if not loop.last %},{% endif %}{% endfor %}]
+            </script>
+
+            <!-- Current teams indicator -->
+            <div id="current-teams-wrap" style="display:none;margin-bottom:14px;">
+                <label class="field-label">Currently in teams</label>
+                <div id="current-teams-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:2px;"></div>
+            </div>
+
+            <!-- Step 2: Pick teams to add -->
+            <div class="one-col">
+                <label class="field-label">Add to teams <span style="font-weight:400;text-transform:none;letter-spacing:0;">(hold Ctrl for multiple)</span></label>
+                <select id="assign-teams" class="dark-select" multiple style="height:75px;">
+                    {% for team in teams %}
+                        <option value="{{ team.id }}">{{ team.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div style="display:flex;justify-content:flex-end;margin-top:12px;gap:8px;">
+                <button type="button" onclick="closeModal('assign-modal')" style="padding:6px 14px;border-radius:7px;cursor:pointer;background:#f6f8fa;border:1px solid #d0d7de;color:#1f2328;font-size:0.83em;font-weight:600;">Cancel</button>
+                <button type="button" onclick="submitAssign()" style="padding:6px 16px;border-radius:7px;font-weight:600;cursor:pointer;border:none;background:linear-gradient(135deg,#6e40c9,#8250df);color:#fff;font-size:0.83em;box-shadow:0 2px 8px rgba(130,80,223,0.2);">Assign teams</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Date picker modal -->
+<div id="picker-overlay" class="picker-overlay" onclick="overlayClick(event)">
+    <div class="picker-box">
+        <div class="picker-hdr">
+            <strong>📅 Select Dates</strong>
+            <button onclick="closeDatePicker()">×</button>
+        </div>
+        <div class="picker-nav">
+            <button onclick="pickerPrev()">‹</button>
+            <span id="picker-month-label"></span>
+            <button onclick="pickerNext()">›</button>
+        </div>
+        <div id="picker-grid" class="picker-grid"></div>
+        <div class="picker-footer">
+            <span id="picker-count">Click dates to select</span>
+            <div style="display:flex;gap:8px;">
+                <button class="btn-clr" onclick="clearDatePicker()">Clear</button>
+                <button class="btn-done" onclick="closeDatePicker()">Done ✓</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Team Modal -->
+<div id="edit-team-modal" class="form-modal" onclick="modalOverlayClick(event,'edit-team-modal')">
+    <div class="form-card">
+        <div class="form-card-hdr">
+            <div class="hdr-left">✏️ Edit Team</div>
+            <button class="close-btn" onclick="closeModal('edit-team-modal')">×</button>
+        </div>
+        <div class="form-card-body">
+            <input type="hidden" id="edit-team-id">
+            <div class="one-col">
+                <label class="field-label">Team Name</label>
+                <input type="text" id="edit-team-name" class="dark-input" placeholder="Team name" required>
+            </div>
+            <div style="display:flex;justify-content:flex-end;margin-top:12px;gap:8px;">
+                <button type="button" onclick="closeModal('edit-team-modal')" style="padding:6px 14px;border-radius:7px;cursor:pointer;background:#f6f8fa;border:1px solid #d0d7de;color:#1f2328;font-size:0.83em;font-weight:600;">Cancel</button>
+                <button type="button" onclick="submitEditTeam()" style="padding:6px 16px;border-radius:7px;font-weight:600;cursor:pointer;border:none;background:linear-gradient(135deg,#0969da,#388bfd);color:#fff;font-size:0.83em;box-shadow:0 2px 8px rgba(9,105,218,0.2);">Save changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="confirm-modal" class="confirm-modal" onclick="if(event.target===this)closeConfirm()">
+    <div class="confirm-box">
+        <div class="confirm-box-hdr">⚠️ Confirm Delete</div>
+        <div class="confirm-box-body">
+            <p id="confirm-msg"></p>
+            <div class="confirm-box-footer">
+                <button class="btn-cancel-del" onclick="closeConfirm()">Cancel</button>
+                <button class="btn-confirm-del" id="confirm-del-btn">Yes, Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="notification-bar" class="notification-bar"></div>
+
+<script>
+    /* ── Modal helpers ──────────────────────────────────────── */
+    function openModal(id) {
+        document.getElementById(id).classList.add('open');
+        if (id === 'assign-modal') {
+            document.getElementById('emp-search-input').value = '';
+            document.getElementById('assign-employee').value = '';
+            document.getElementById('emp-dropdown').style.display = 'none';
+            document.getElementById('current-teams-wrap').style.display = 'none';
+            document.querySelectorAll('#assign-teams option').forEach(o => o.selected = false);
+            selectedEmpId = null;
+            setTimeout(() => document.getElementById('emp-search-input').focus(), 100);
+        }
+    }
+    function closeModal(id) {
+        document.getElementById(id).classList.remove('open');
+    }
+    function modalOverlayClick(e, id) {
+        if (e.target === document.getElementById(id)) closeModal(id);
+    }
+
+    /* ── Assign employee to teams — searchable combobox ─────── */
+    const empData = JSON.parse(document.getElementById('emp-data')?.textContent || '[]');
+    let selectedEmpId = null;
+
+    function filterEmployees() {
+        const q = document.getElementById('emp-search-input').value.toLowerCase().trim();
+        const results = q === '' ? empData : empData.filter(e =>
+            e.name.toLowerCase().includes(q) || e.email.toLowerCase().includes(q)
+        );
+        renderEmpDropdown(results);
+        if (selectedEmpId) {
+            selectedEmpId = null;
+            document.getElementById('assign-employee').value = '';
+            document.getElementById('current-teams-wrap').style.display = 'none';
+        }
+    }
+
+    function showEmpDropdown() {
+        const q = document.getElementById('emp-search-input').value.toLowerCase().trim();
+        const results = q === '' ? empData : empData.filter(e =>
+            e.name.toLowerCase().includes(q) || e.email.toLowerCase().includes(q)
+        );
+        renderEmpDropdown(results);
+    }
+
+    function renderEmpDropdown(list) {
+        const dd = document.getElementById('emp-dropdown');
+        if (list.length === 0) {
+            dd.innerHTML = '<div style="padding:10px 14px;color:#8c959f;font-size:0.85em;">No employees found</div>';
+        } else {
+            dd.innerHTML = list.map(e => `
+                <div class="emp-opt" data-id="${e.id}" data-teams='${JSON.stringify(e.teams)}'
+                     onclick="selectEmployee(${e.id})"
+                     style="padding:9px 14px;cursor:pointer;font-size:0.88em;color:#1f2328;border-bottom:1px solid #f0f2f4;display:flex;flex-direction:column;gap:1px;transition:background 0.15s;">
+                    <span style="font-weight:600;">${e.name}</span>
+                    ${e.email ? `<span style="font-size:0.8em;color:#656d76;">${e.email}</span>` : ''}
+                </div>`).join('');
+            dd.querySelectorAll('.emp-opt').forEach(el => {
+                el.addEventListener('mouseenter', () => el.style.background = '#f6f8fa');
+                el.addEventListener('mouseleave', () => el.style.background = '');
+            });
+        }
+        dd.style.display = 'block';
+    }
+
+    function selectEmployee(id) {
+        const emp = empData.find(e => e.id === id);
+        if (!emp) return;
+        selectedEmpId = id;
+        document.getElementById('emp-search-input').value = emp.name + (emp.email ? ` (${emp.email})` : '');
+        document.getElementById('assign-employee').value = id;
+        document.getElementById('emp-dropdown').style.display = 'none';
+        loadEmployeeTeams(emp.teams);
+    }
+
+    function loadEmployeeTeams(currentIds) {
+        const wrap  = document.getElementById('current-teams-wrap');
+        const chips = document.getElementById('current-teams-chips');
+        chips.innerHTML = '';
+        const teamColors = ['#0969da','#1a7f37','#8250df','#9a6700'];
+        let ci = 0;
+        document.querySelectorAll('#assign-teams option').forEach(o => {
+            o.selected = false;
+            if (currentIds.includes(parseInt(o.value))) {
+                const c = teamColors[ci++ % teamColors.length];
+                chips.innerHTML += `<span style="background:${c}12;border:1px solid ${c}35;border-radius:20px;padding:3px 12px;font-size:0.78em;color:${c};font-weight:600;">${o.textContent}</span>`;
+            }
+        });
+        if (currentIds.length === 0) {
+            chips.innerHTML = '<em style="color:#8c959f;font-size:0.82em;">Not in any team yet</em>';
+        }
+        wrap.style.display = 'block';
+    }
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', e => {
+        const wrap = document.querySelector('#assign-modal .one-col');
+        if (wrap && !wrap.contains(e.target)) {
+            document.getElementById('emp-dropdown').style.display = 'none';
+        }
+    });
+
+    function submitAssign() {
+        const empId = document.getElementById('assign-employee').value;
+        if (!empId) { showNotification('Please select an employee first.', 'warning'); return; }
+        const teamIds = Array.from(document.getElementById('assign-teams').selectedOptions)
+                             .map(o => parseInt(o.value));
+        if (teamIds.length === 0) { showNotification('Select at least one team.', 'warning'); return; }
+        fetch(`/api/assign_teams/${empId}`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({team_ids: teamIds})
+        })
+        .then(r => r.json())
+        .then(d => {
+            showNotification(d.message, d.status);
+            if (d.status === 'success') { closeModal('assign-modal'); setTimeout(() => location.reload(), 900); }
+        })
+        .catch(() => showNotification('Error assigning teams.', 'error'));
+    }
+
+    /* ── Date label ─────────────────────────────────────────── */
+    (function() {
+        const d = new Date();
+        const days   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+        const daysS  = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+        const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        const monthsFull = ['January','February','March','April','May','June',
+                            'July','August','September','October','November','December'];
+        document.getElementById('today-label').textContent =
+            `${daysS[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+        const full = document.getElementById('today-full-date');
+        if (full) full.textContent =
+            `${days[d.getDay()]}, ${d.getDate()} ${monthsFull[d.getMonth()]} ${d.getFullYear()}`;
+    })();
+
+    /* ── Multi-date picker ──────────────────────────────────── */
+    let selectedDates = new Set();
+    let pickerYear, pickerMonth;
+
+    function openDatePicker() {
+        const t = new Date();
+        pickerYear = t.getFullYear();
+        pickerMonth = t.getMonth();
+        renderPicker();
+        document.getElementById('picker-overlay').classList.add('open');
+    }
+    function closeDatePicker() {
+        document.getElementById('picker-overlay').classList.remove('open');
+        renderChips();
+        doSearch();
+    }
+    function overlayClick(e) {
+        if (e.target.id === 'picker-overlay') closeDatePicker();
+    }
+    function pickerPrev() {
+        pickerMonth--; if (pickerMonth < 0) { pickerMonth = 11; pickerYear--; }
+        renderPicker();
+    }
+    function pickerNext() {
+        pickerMonth++; if (pickerMonth > 11) { pickerMonth = 0; pickerYear++; }
+        renderPicker();
+    }
+    function renderPicker() {
+        const mn = ['January','February','March','April','May','June',
+                    'July','August','September','October','November','December'];
+        document.getElementById('picker-month-label').textContent = `${mn[pickerMonth]} ${pickerYear}`;
+        const g = document.getElementById('picker-grid');
+        g.innerHTML = '';
+        ['Mo','Tu','We','Th','Fr','Sa','Su'].forEach(d => {
+            const h = document.createElement('div');
+            h.className = 'p-hdr'; h.textContent = d; g.appendChild(h);
+        });
+        let sd = new Date(pickerYear, pickerMonth, 1).getDay();
+        sd = sd === 0 ? 6 : sd - 1;
+        for (let i = 0; i < sd; i++) {
+            const b = document.createElement('div'); b.className = 'p-day p-empty'; g.appendChild(b);
+        }
+        const dim = new Date(pickerYear, pickerMonth + 1, 0).getDate();
+        for (let d = 1; d <= dim; d++) {
+            const ds = `${pickerYear}-${String(pickerMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+            const c = document.createElement('div');
+            c.className = 'p-day' + (selectedDates.has(ds) ? ' p-sel' : '');
+            c.textContent = d; c.dataset.date = ds;
+            c.onclick = () => toggleDay(c);
+            g.appendChild(c);
+        }
+        updateCount();
+    }
+    function toggleDay(c) {
+        const d = c.dataset.date;
+        selectedDates.has(d) ? (selectedDates.delete(d), c.classList.remove('p-sel'))
+                             : (selectedDates.add(d),    c.classList.add('p-sel'));
+        updateCount();
+    }
+    function updateCount() {
+        const n = selectedDates.size;
+        document.getElementById('picker-count').textContent =
+            n > 0 ? `${n} date(s) selected` : 'Click dates to select';
+    }
+    function clearDatePicker() {
+        selectedDates.clear();
+        document.querySelectorAll('#picker-grid .p-day').forEach(e => e.classList.remove('p-sel'));
+        updateCount();
+    }
+    function renderChips() {
+        const chips = document.getElementById('date-chips');
+        const btn   = document.getElementById('date-btn-label');
+        chips.innerHTML = '';
+        const sorted = [...selectedDates].sort();
+        btn.textContent = sorted.length === 0 ? 'Select dates'
+                        : sorted.length === 1 ? sorted[0].split('-').reverse().join('-')
+                        : `${sorted.length} dates`;
+        sorted.forEach(d => {
+            const [y,m,day] = d.split('-');
+            const chip = document.createElement('span');
+            chip.className = 'date-chip';
+            chip.innerHTML = `${day}-${m}-${y} <span class="rm" data-d="${d}">×</span>`;
+            chip.querySelector('.rm').onclick = ev => {
+                selectedDates.delete(ev.target.dataset.d);
+                renderChips(); doSearch();
+            };
+            chips.appendChild(chip);
+        });
+    }
+
+    /* ── Search ─────────────────────────────────────────────── */
+    function doSearch() {
+        if (selectedDates.size === 0) {
+            document.getElementById('search-results').style.display = 'none'; return;
+        }
+        const dates = [...selectedDates].sort().join(',');
+        const team  = document.getElementById('s-team').value;
+        const shift = document.getElementById('s-shift').value;
+        const p = new URLSearchParams({dates});
+        if (team)  p.set('team_id',    team);
+        if (shift) p.set('shift_type', shift);
+        fetch('/api/roster_search?' + p)
+            .then(r => r.json())
+            .then(data => {
+                const box = document.getElementById('search-results');
+                box.style.display = 'block';
+                if (data.error) { box.innerHTML = `<span style="color:#f85149">${data.error}</span>`; return; }
+                const sl = {M:'Morning',A:'Afternoon',N:'Night',L:'Leave',O:'OFF',G:'General'};
+                const shiftTxt = shift ? sl[shift] : 'any shift';
+                let html = `<strong style="color:#f0f6fc">${data.count} member(s)</strong>`;
+                html += data.count === 0
+                    ? ' &nbsp;<em style="color:#8b949e">No members found.</em>'
+                    : ': &nbsp;' + data.names.map(n =>
+                        `<span style="display:inline-block;background:#f6f8fa;border:1px solid #d0d7de;border-radius:12px;padding:3px 10px;margin:3px;font-size:0.9em;color:#1f2328">👤 ${n}</span>`
+                      ).join('');
+                box.innerHTML = html;
+            })
+            .catch(() => {
+                const box = document.getElementById('search-results');
+                box.style.display = 'block';
+                box.innerHTML = '<span style="color:#f85149">Search error.</span>';
+            });
+    }
+
+    /* ── Forms ──────────────────────────────────────────────── */
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('create-team-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            fetch('{{ url_for("create_team") }}', {method:'POST', body: new FormData(this)})
+                .then(r => r.json())
+                .then(d => {
+                    showNotification(d.message, d.status);
+                    if (d.status === 'success') { closeModal('team-modal'); this.reset(); setTimeout(() => location.reload(), 900); }
+                });
+        });
+        document.getElementById('create-employee-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            fetch('{{ url_for("create_employee") }}', {method:'POST', body: new FormData(this)})
+                .then(r => r.json())
+                .then(d => {
+                    showNotification(d.message, d.status);
+                    if (d.status === 'success') { closeModal('emp-modal'); this.reset(); setTimeout(() => location.reload(), 900); }
+                });
+        });
+    });
+
+    function showNotification(msg, type) {
+        const bar = document.getElementById('notification-bar');
+        bar.textContent = msg;
+        bar.className = `notification-bar show ${type}`;
+        setTimeout(() => { bar.classList.remove('show'); }, 3200);
+    }
+
+    /* ── Today at a Glance toggle ───────────────────────────── */
+    function toggleGlance() {
+        const card = document.querySelector('.today-card');
+        const btn  = document.getElementById('glance-btn');
+        const open = card.classList.toggle('open');
+        btn.style.background  = open ? '#dbeafa' : '';
+        btn.style.borderColor = open ? '#93c5fd' : '';
+        btn.style.color       = open ? '#1d4ed8' : '';
+    }
+
+    /* ── Edit Team ──────────────────────────────────────────── */
+    function openEditTeam(teamId, teamName) {
+        document.getElementById('edit-team-id').value = teamId;
+        document.getElementById('edit-team-name').value = teamName;
+        openModal('edit-team-modal');
+        setTimeout(() => document.getElementById('edit-team-name').focus(), 100);
+    }
+
+    function submitEditTeam() {
+        const id   = document.getElementById('edit-team-id').value;
+        const name = document.getElementById('edit-team-name').value.trim();
+        if (!name) { showNotification('Team name cannot be empty.', 'warning'); return; }
+        fetch(`/edit_team/${id}`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({name})
+        })
+        .then(r => r.json())
+        .then(d => {
+            showNotification(d.message, d.status);
+            if (d.status === 'success') { closeModal('edit-team-modal'); setTimeout(() => location.reload(), 900); }
+        })
+        .catch(() => showNotification('Update failed.', 'error'));
+    }
+
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && document.getElementById('edit-team-modal').classList.contains('open')) {
+            submitEditTeam();
+        }
+    });
+
+    /* ── Delete confirmation ────────────────────────────────── */
+    let _deleteCallback = null;
+
+    function confirmDelete(type, id, name) {
+        const msg = type === 'team'
+            ? `Delete team "${name}"? All members will be removed from this team. This cannot be undone.`
+            : `Delete employee "${name}"? All their shifts and team assignments will be removed. This cannot be undone.`;
+        document.getElementById('confirm-msg').textContent = msg;
+        _deleteCallback = () => {
+            const url = type === 'team' ? `/delete_team/${id}` : `/delete_employee/${id}`;
+            fetch(url, { method: 'POST' })
+                .then(r => r.json())
+                .then(d => {
+                    closeConfirm();
+                    showNotification(d.message, d.status);
+                    if (d.status === 'success') setTimeout(() => location.reload(), 900);
+                })
+                .catch(() => showNotification('Delete failed.', 'error'));
+        };
+        document.getElementById('confirm-modal').classList.add('open');
+    }
+
+    function closeConfirm() {
+        document.getElementById('confirm-modal').classList.remove('open');
+        _deleteCallback = null;
+    }
+
+    document.getElementById('confirm-del-btn').addEventListener('click', () => {
+        if (_deleteCallback) _deleteCallback();
+    });
+</script>
+</body>
+</html>
