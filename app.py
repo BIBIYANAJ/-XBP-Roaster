@@ -1216,3 +1216,16 @@ if __name__ == '__main__':
                     emp.teams.append(team)
         db.session.commit()
     app.run(debug=True)
+# --- App Initialization (Move this OUTSIDE of the if __name__ block) ---
+with app.app_context():
+    db.create_all()
+    # Check if admin exists, if not create them
+    if not Employee.query.filter_by(email="admin@exmaplegmail.com").first():
+        admin = Employee(
+            name="Admin User",
+            email="admin@exmaplegmail.com",
+            is_admin=True,
+            password="admin123" # Added a default password for you
+        )
+        db.session.add(admin)
+        db.session.commit()
