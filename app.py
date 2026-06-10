@@ -307,7 +307,7 @@ def send_roster_email(employee, image_bytes, subject, body_text, team_name='', p
     """Send HTML email with the roster image displayed inline."""
     msg = MIMEMultipart('related')
     msg['Subject'] = subject
-    msg['From']    = SMTP_USERNAME
+    msg['From']    = SENDER_EMAIL  # Changed from SMTP_USERNAME to SENDER_EMAIL
     msg['To']      = employee.email
 
     alt = MIMEMultipart('alternative')
@@ -396,7 +396,7 @@ def send_email(to_email, file_path, employee_name):
     log.info("SMTP ▶ sending individual schedule to %s", to_email)
     msg = EmailMessage()
     msg['Subject'] = 'Updated Monthly Shift Roster'
-    msg['From']    = SMTP_USERNAME
+    msg['From']    = SENDER_EMAIL  # Changed from SMTP_USERNAME to SENDER_EMAIL
     msg['To']      = to_email
     msg.set_content(f"Hi {employee_name},\n\nYour updated monthly shift roster is attached.\n\nRegards,\nAdmin")
     with open(file_path, 'rb') as f:
