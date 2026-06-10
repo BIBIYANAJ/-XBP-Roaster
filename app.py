@@ -178,10 +178,22 @@ def generate_roster_image(employees, dates, schedule_data, title, team_name='', 
 
     # ── Load fonts ─────────────────────────────────────────────────
     def load_font(size, bold=False):
-        font_names = ['arialbd.ttf', 'Arial_Bold.ttf', 'arial.ttf', 'Arial.ttf',
-                      'DejaVuSans-Bold.ttf', 'DejaVuSans.ttf']
-        if not bold:
-            font_names = ['arial.ttf', 'Arial.ttf', 'DejaVuSans.ttf', 'arialbd.ttf']
+        if bold:
+            font_names = [
+                'arialbd.ttf', 'Arial_Bold.ttf', 
+                'DejaVuSans-Bold.ttf',
+                '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
+                '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf',
+                'arial.ttf', 'Arial.ttf'
+            ]
+        else:
+            font_names = [
+                'arial.ttf', 'Arial.ttf', 
+                'DejaVuSans.ttf',
+                '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+                '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
+                'arialbd.ttf'
+            ]
         for fname in font_names:
             try:
                 return ImageFont.truetype(fname, size)
@@ -357,7 +369,7 @@ def send_roster_email(employee, image_bytes, subject, body_text, team_name='', p
     """Send HTML email with the roster image displayed inline."""
     msg = MIMEMultipart('related')
     msg['Subject'] = subject
-    msg['From']    = f"XBPAsia <{SENDER_EMAIL}>"
+    msg['From']    = f"ShiftRoaster  <{SENDER_EMAIL}>"
     msg['To']      = employee.email
 
     alt = MIMEMultipart('alternative')
@@ -446,7 +458,7 @@ def send_email(to_email, file_path, employee_name):
     log.info("SMTP ▶ sending individual schedule to %s", to_email)
     msg = EmailMessage()
     msg['Subject'] = 'Updated Monthly Shift Roster'
-    msg['From']    = f"XBPAsia <{SENDER_EMAIL}>" # Changed from SMTP_USERNAME to SENDER_EMAIL
+    msg['From']    = f"ShiftRoaster  <{SENDER_EMAIL}>" # Changed from SMTP_USERNAME to SENDER_EMAIL
     msg['To']      = to_email
     msg.set_content(f"Hi {employee_name},\n\nYour updated monthly shift roster is attached.\n\nRegards,\nAdmin")
     with open(file_path, 'rb') as f:
