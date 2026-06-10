@@ -140,15 +140,15 @@ def validate_shift(employee_id, date, shift_type):
 
 def generate_roster_image(employees, dates, schedule_data, title, team_name='', period_label=''):
     """Generate a PNG image of the roster table for emailing."""
-    # Adaptive column width: narrower for many dates (monthly)
-    col_w    = 55 if len(dates) <= 7 else 34
-    row_h    = 28
-    date_h   = 38   # taller header row to fit date number + day name
-    wk_h     = 20   # week-group header height
-    name_w   = 160
-    header_h = 58   # title bar height
-    padding  = 15
-    legend_h = 28   # footer legend height
+
+    col_w    = 72 if len(dates) <= 7 else 52
+    row_h    = 70
+    date_h   = 90
+    wk_h     = 55
+    name_w   = 300
+    header_h = 130
+    padding  = 30
+    legend_h = 60
 
     SHIFT_COLORS = {
         'M': (255, 215, 0),
@@ -160,7 +160,7 @@ def generate_roster_image(employees, dates, schedule_data, title, team_name='', 
         '':  (255, 255, 255),
     }
     SHIFT_TEXT_COLORS = {
-        'M': (51, 51, 51),
+        'M': (30, 30, 30),
         'A': (255, 255, 255),
         'N': (255, 255, 255),
         'O': (255, 255, 255),
@@ -173,113 +173,163 @@ def generate_roster_image(employees, dates, schedule_data, title, team_name='', 
     width  = padding + name_w + total_cols_w + padding
     height = header_h + wk_h + date_h + row_h * len(employees) + legend_h + padding * 2
 
-    img  = Image.new('RGB', (width, height), (245, 247, 246))
+    img  = Image.new('RGB', (width, height), (240, 242, 245))
     draw = ImageDraw.Draw(img)
 
-    try:
-        font_title  = ImageFont.truetype("arial.ttf", 15)
-        font_sub    = ImageFont.truetype("arial.ttf", 10)
-        font_header = ImageFont.truetype("arial.ttf", 10)
-        font_cell   = ImageFont.truetype("arial.ttf", 10)
-        font_name   = ImageFont.truetype("arial.ttf", 10)
-        font_legend = ImageFont.truetype("arial.ttf", 9)
-    except Exception:
-        font_title  = ImageFont.load_default()
-        font_sub    = font_title
-        font_header = font_title
-        font_cell   = font_title
-        font_name   = font_title
-        font_legend = font_title
+    # ── Load fonts ─────────────────────────────────────────────────
+    def load_font(size, bold=False):
+        font_names = ['arialbd.ttf', 'Arial_Bold.ttf', 'arial.ttf', 'Arial.ttf',
+                      'DejaVuSans-Bold.ttf', 'DejaVuSans.ttf']
+        if not bold:
+            font_names = ['arial.ttf', 'Arial.ttf', 'DejaVuSans.ttf', 'arialbd.ttf']
+        for fname in font_names:
+            try:
+                return ImageFont.truetype(fname, size)
+            except Exception:
+                continue
+        try:
+            return ImageFont.load_default(size=size)
+        except Exception:
+            return ImageFont.load_default()
+
+    font_title   = load_font(42, bold=True)
+    font_sub     = load_font(28)
+    font_wk      = load_font(30, bold=True)
+    font_datenum = load_font(28, bold=True)
+    font_dayname = load_font(22)
+    font_empname = load_font(28, bold=True)
+    font_cell    = load_font(32, bold=True)
+    font_legend  = load_font(22)
+
+    # ── Helper: centered text in a box ────────────────────────────
+    def draw_centered(text, x, y, w, h, font, color):
+        bbox = draw.textbbox((0, 0), text, font=font)
+        tw = bbox[2] - bbox[0]
+        th = bbox[3] - bbox[1]
+        draw.text((x + (w - tw) // 2, y + (h - th) // 2), text, fill=color, font=font)
 
     # ── Title bar ──────────────────────────────────────────────────
-    draw.rectangle([0, 0, width, header_h], fill=(76, 102, 164))
-    draw.text((padding, 10), title, fill=(255, 255, 255), font=font_title)
+    draw.rectangle([0, 0, width, header_h], fill=(60, 90, 155))
+    # Title text
+    bbox = draw.textbbox((0, 0), title, font=font_title)
+    draw.text((padding, 20), title, fill=(255, 255, 255), font=font_title)
+    # Subtitle
     if team_name or period_label:
         sub = f"Team: {team_name}   |   Period: {period_label}" if team_name else period_label
-        draw.text((padding, 34), sub, fill=(200, 220, 255), font=font_sub)
+        draw.text((padding, 78), sub, fill=(190, 215, 255), font=font_sub)
 
     x_start = padding
-    y_wk    = header_h         # week-group header row y
-    y_date  = y_wk + wk_h     # date+day header row y
-    y_data  = y_date + date_h  # first employee row y
+    y_wk    = header_h
+    y_date  = y_wk + wk_h
+    y_data  = y_date + date_h
 
-    # ── Week-group header row (Wk 1, Wk 2 …) ─────────────────────
-    # Group consecutive dates by ISO week
+    # ── "Employee" column header (spans wk + date rows) ───────────
+    draw.rectangle([x_start, y_wk, x_start + name_w - 1, y_date + date_h - 1],
+                   fill=(60, 90, 155))
+    draw_centered("Employee", x_start, y_wk, name_w, wk_h + date_h,
+                  font_wk, (255, 255, 255))
+
+    # ── Week-group header row ──────────────────────────────────────
     groups = []
     for i, d in enumerate(dates):
         wk = d.isocalendar()[1]
         if groups and groups[-1]['wk'] == wk:
             groups[-1]['count'] += 1
         else:
-            groups.append({'wk': wk, 'start': i, 'count': 1, 'label': f"Wk {len(groups)+1}"})
+            groups.append({'wk': wk, 'start': i, 'count': 1,
+                           'label': f"Wk {len(groups)+1}"})
 
-    # "Employee" spanning both header rows on the left
-    draw.rectangle([x_start, y_wk, x_start + name_w, y_date + date_h - 1], fill=(76, 102, 164))
-    draw.text((x_start + 5, y_wk + 5), "Employee", fill=(255, 255, 255), font=font_header)
+    ALT_DARK = (60, 90, 155)
+    ALT_MED  = (80, 112, 178)
 
-    HEADER_DARK  = (76, 102, 164)
-    HEADER_MID   = (92, 120, 185)
-
-    for g in groups:
+    for gi, g in enumerate(groups):
         gx = x_start + name_w + g['start'] * col_w
         gw = g['count'] * col_w
-        draw.rectangle([gx, y_wk, gx + gw - 1, y_wk + wk_h - 1], fill=HEADER_DARK)
-        # Center label
-        draw.text((gx + gw // 2 - 10, y_wk + 4), g['label'], fill=(255, 255, 255), font=font_header)
-        # Divider
-        draw.line([gx + gw - 1, y_wk, gx + gw - 1, y_wk + wk_h], fill=(255, 255, 255), width=1)
+        bg = ALT_DARK if gi % 2 == 0 else ALT_MED
+        draw.rectangle([gx, y_wk, gx + gw - 1, y_wk + wk_h - 1], fill=bg)
+        draw_centered(g['label'], gx, y_wk, gw, wk_h, font_wk, (255, 255, 255))
+        # right divider
+        draw.line([gx + gw - 1, y_wk, gx + gw - 1, y_wk + wk_h - 1],
+                  fill=(255, 255, 255), width=2)
 
     # ── Date + day header row ──────────────────────────────────────
+    HEADER_DATE_BG  = (92, 122, 190)
+    HEADER_DATE_BG2 = (108, 138, 205)
+
     for i, d in enumerate(dates):
-        x = x_start + name_w + i * col_w
-        draw.rectangle([x, y_date, x + col_w - 1, y_date + date_h - 1], fill=HEADER_MID)
+        x  = x_start + name_w + i * col_w
+        bg = HEADER_DATE_BG if i % 2 == 0 else HEADER_DATE_BG2
+        draw.rectangle([x, y_date, x + col_w - 1, y_date + date_h - 1], fill=bg)
         num_str = str(d.day)
         day_str = d.strftime('%a')
-        draw.text((x + col_w // 2 - 5, y_date + 4),  num_str, fill=(255, 255, 255), font=font_header)
-        draw.text((x + col_w // 2 - 7, y_date + 20), day_str, fill=(200, 220, 255),  font=font_legend)
+        # date number (top half)
+        draw_centered(num_str, x, y_date, col_w, date_h // 2, font_datenum, (255, 255, 255))
+        # day name (bottom half)
+        draw_centered(day_str, x, y_date + date_h // 2, col_w, date_h // 2,
+                      font_dayname, (210, 230, 255))
+        # column divider
+        draw.line([x + col_w - 1, y_date, x + col_w - 1, y_date + date_h - 1],
+                  fill=(255, 255, 255), width=1)
 
     # ── Employee data rows ─────────────────────────────────────────
     for row_i, emp in enumerate(employees):
-        y  = y_data + row_h * row_i
-        bg = (249, 249, 249) if row_i % 2 == 0 else (242, 245, 249)
+        y   = y_data + row_h * row_i
+        bg  = (250, 251, 253) if row_i % 2 == 0 else (238, 243, 252)
+        # name cell
         draw.rectangle([x_start, y, x_start + name_w - 1, y + row_h - 1], fill=bg)
-        draw.text((x_start + 5, y + 9), emp.name[:24], fill=(50, 50, 50), font=font_name)
+        # vertically center name
+        bbox = draw.textbbox((0, 0), emp.name[:28], font=font_empname)
+        th = bbox[3] - bbox[1]
+        draw.text((x_start + 12, y + (row_h - th) // 2),
+                  emp.name[:28], fill=(25, 35, 60), font=font_empname)
 
         for col_i, d in enumerate(dates):
             x        = x_start + name_w + col_i * col_w
             date_str = d.strftime('%Y-%m-%d')
             shift    = schedule_data.get(emp.id, {}).get(date_str, '')
             fill     = SHIFT_COLORS.get(shift, (255, 255, 255))
-            text_col = SHIFT_TEXT_COLORS.get(shift, (200, 200, 200))
+            text_col = SHIFT_TEXT_COLORS.get(shift, (220, 220, 220))
             draw.rectangle([x, y, x + col_w - 1, y + row_h - 1], fill=fill)
             if shift:
-                draw.text((x + col_w // 2 - 4, y + 9), shift, fill=text_col, font=font_cell)
+                draw_centered(shift, x, y, col_w, row_h, font_cell, text_col)
 
-        # Row bottom border
-        draw.line([x_start, y + row_h - 1, x_start + name_w + total_cols_w, y + row_h - 1],
-                  fill=(220, 220, 220), width=1)
+        # row bottom border
+        draw.line([x_start, y + row_h - 1,
+                   x_start + name_w + total_cols_w, y + row_h - 1],
+                  fill=(200, 210, 225), width=1)
 
-    # Vertical grid lines over data area
+    # Vertical grid lines
     for col_i in range(len(dates) + 1):
         lx = x_start + name_w + col_i * col_w
-        draw.line([lx, y_date, lx, y_data + row_h * len(employees)], fill=(220, 220, 220), width=1)
+        draw.line([lx, y_date, lx, y_data + row_h * len(employees)],
+                  fill=(200, 210, 225), width=1)
+
+    # Outer border
+    draw.rectangle([x_start, y_wk,
+                    x_start + name_w + total_cols_w,
+                    y_data + row_h * len(employees)],
+                   outline=(100, 120, 160), width=2)
 
     # ── Legend footer ──────────────────────────────────────────────
     y_legend = y_data + row_h * len(employees) + padding
     legend_items = [
-        ('M', (255, 215, 0),    (51, 51, 51),    'Morning'),
-        ('A', (255, 152, 0),    (255, 255, 255),  'Afternoon'),
-        ('N', (26, 35, 126),    (255, 255, 255),  'Night'),
-        ('L', (244, 67, 54),    (255, 255, 255),  'Leave'),
-        ('O', (76, 175, 80),    (255, 255, 255),  'OFF'),
-        ('G', (103, 58, 183),   (255, 255, 255),  'General'),
+        ('M', (255, 215, 0),   (30, 30, 30),   'Morning'),
+        ('A', (255, 152, 0),   (255, 255, 255), 'Afternoon'),
+        ('N', (26, 35, 126),   (255, 255, 255), 'Night'),
+        ('L', (244, 67, 54),   (255, 255, 255), 'Leave'),
+        ('O', (76, 175, 80),   (255, 255, 255), 'OFF'),
+        ('G', (103, 58, 183),  (255, 255, 255), 'General'),
     ]
     lx = x_start
+    box_size = 36
+    gap      = 10
     for code, bg, fg, label in legend_items:
-        draw.rectangle([lx, y_legend, lx + 18, y_legend + 16], fill=bg)
-        draw.text((lx + 5, y_legend + 3), code, fill=fg, font=font_legend)
-        draw.text((lx + 22, y_legend + 3), label, fill=(80, 80, 80), font=font_legend)
-        lx += 18 + len(label) * 6 + 16
+        draw.rectangle([lx, y_legend, lx + box_size, y_legend + box_size], fill=bg)
+        draw_centered(code, lx, y_legend, box_size, box_size, font_legend, fg)
+        draw.text((lx + box_size + 6, y_legend + 7), label,
+                  fill=(50, 50, 60), font=font_legend)
+        label_w = draw.textbbox((0, 0), label, font=font_legend)[2]
+        lx += box_size + 6 + label_w + gap + 18
 
     buf = io.BytesIO()
     img.save(buf, format='PNG')
@@ -307,7 +357,7 @@ def send_roster_email(employee, image_bytes, subject, body_text, team_name='', p
     """Send HTML email with the roster image displayed inline."""
     msg = MIMEMultipart('related')
     msg['Subject'] = subject
-    msg['From']    = SENDER_EMAIL  # Changed from SMTP_USERNAME to SENDER_EMAIL
+    msg['From']    = f"XBPAsia <{SENDER_EMAIL}>"
     msg['To']      = employee.email
 
     alt = MIMEMultipart('alternative')
@@ -396,7 +446,7 @@ def send_email(to_email, file_path, employee_name):
     log.info("SMTP ▶ sending individual schedule to %s", to_email)
     msg = EmailMessage()
     msg['Subject'] = 'Updated Monthly Shift Roster'
-    msg['From']    = SENDER_EMAIL  # Changed from SMTP_USERNAME to SENDER_EMAIL
+    msg['From']    = f"XBPAsia <{SENDER_EMAIL}>" # Changed from SMTP_USERNAME to SENDER_EMAIL
     msg['To']      = to_email
     msg.set_content(f"Hi {employee_name},\n\nYour updated monthly shift roster is attached.\n\nRegards,\nAdmin")
     with open(file_path, 'rb') as f:
