@@ -1,5 +1,6 @@
 # app.py - Work Schedule Management System
 
+import os
 import datetime
 import smtplib
 import io
@@ -30,12 +31,12 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://neondb_owner:npg_4sLTVfeAD
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
-# --- Email Configuration ---
-SMTP_SERVER   = 'smtp.gmail.com'
-SMTP_PORT     = 465
-SMTP_USERNAME = 'bibiyanaj8@gmail.com'
-SMTP_PASSWORD = 'dwgt bzlt xahc aisr'
-SENDER_EMAIL  = SMTP_USERNAME
+# --- Email Configuration (Using Brevo on Port 2525) ---
+SMTP_SERVER   = 'smtp-relay.brevo.com'
+SMTP_PORT     = 2525                        # Use 2525 to bypass Render's port blocks
+SMTP_USERNAME = 'ae379c001@smtp-brevo.com'  
+SMTP_PASSWORD = os.environ.get('SMTP_PASSWORD')  # Hidden securely from GitHub's scanners
+SENDER_EMAIL  = 'bibiyanaj8@gmail.com'      # Your verified sender email
 
 # --- Shift metadata ---
 SHIFT_LABELS = {
@@ -287,15 +288,14 @@ def generate_roster_image(employees, dates, schedule_data, title, team_name='', 
 
 
 def _smtp_send(msg, to_label):
-    """Send via SMTP_SSL (port 465)."""
+    """Send via SMTP (port 2525 with STARTTLS)."""
     log.info("SMTP ▶ connecting to %s:%s", SMTP_SERVER, SMTP_PORT)
     try:
-        # Using SMTP_SSL for Port 465
-        with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT, timeout=20) as s:
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=20) as s:
             s.ehlo()
-            if SMTP_PASSWORD:
-                # No starttls() needed when using SMTP_SSL
-                s.login(SMTP_USERNAME, SMTP_PASSWORD)
+            s.starttls()  # Secure connection via STARTTLS
+            s.ehlo()
+            s.login(SMTP_USERNAME, SMTP_PASSWORD)
             s.send_message(msg)
             log.info("SMTP ▶ sent OK to %s", to_label)
     except Exception as e:
