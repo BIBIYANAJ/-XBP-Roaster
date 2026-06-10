@@ -32,7 +32,7 @@ db = SQLAlchemy(app)
 
 # --- Email Configuration ---
 SMTP_SERVER   = 'smtp.gmail.com'
-SMTP_PORT     = 587
+SMTP_PORT     = 465
 SMTP_USERNAME = 'bibiyanaj8@gmail.com'
 SMTP_PASSWORD = 'dwgt bzlt xahc aisr'
 SENDER_EMAIL  = SMTP_USERNAME
@@ -287,15 +287,14 @@ def generate_roster_image(employees, dates, schedule_data, title, team_name='', 
 
 
 def _smtp_send(msg, to_label):
-    """Send via internal SMTP relay (port 25, no auth)."""
+    """Send via SMTP_SSL (port 465)."""
     log.info("SMTP ▶ connecting to %s:%s", SMTP_SERVER, SMTP_PORT)
     try:
-        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=20) as s:
+        # Using SMTP_SSL for Port 465
+        with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT, timeout=20) as s:
             s.ehlo()
-            # Only login if a password is configured
             if SMTP_PASSWORD:
-                s.starttls()
-                s.ehlo()
+                # No starttls() needed when using SMTP_SSL
                 s.login(SMTP_USERNAME, SMTP_PASSWORD)
             s.send_message(msg)
             log.info("SMTP ▶ sent OK to %s", to_label)
