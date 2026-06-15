@@ -258,7 +258,7 @@ main {
 }
 
 /* --- Full-cell shift coloring (employee calendar) --- */
-.calendar-day.cell-shift-M { background-color: #d4a72c; border-color: #b8891a; }
+.calendar-day.cell-shift-M { background-color: #fff176; border-color: #fbc02d; }
 .calendar-day.cell-shift-A { background-color: #d15704; border-color: #a84403; }
 .calendar-day.cell-shift-N { background-color: #1f6feb; border-color: #1558c0; }
 .calendar-day.cell-shift-O { background-color: #1a7f37; border-color: #14622b; }
@@ -272,7 +272,7 @@ main {
 .calendar-day.cell-shift-L .day-number,
 .calendar-day.cell-shift-G .day-number { color: #ffffff; }
 
-.calendar-day.cell-shift-M:hover { background-color: #c4971f; }
+.calendar-day.cell-shift-M:hover { background-color: #fff9c4; }
 .calendar-day.cell-shift-A:hover { background-color: #b84a03; }
 .calendar-day.cell-shift-N:hover { background-color: #1558c0; }
 .calendar-day.cell-shift-O:hover { background-color: #14622b; }
