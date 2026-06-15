@@ -913,13 +913,15 @@
 
     <!-- Stats row -->
     <div class="stats-row">
-        <div class="stat-card stat-card-emp">
-            <div class="stat-header">
-                <div class="stat-label">Total employees</div>
-                <div class="stat-icon">👤</div>
+        <a href="{{ url_for('all_employees') }}" style="text-decoration: none; color: inherit;">
+            <div class="stat-card stat-card-emp">
+                <div class="stat-header">
+                    <div class="stat-label">Total employees</div>
+                    <div class="stat-icon">👤</div>
+                </div>
+                <div class="stat-num">{{ total_employees }}</div>
             </div>
-            <div class="stat-num">{{ total_employees }}</div>
-        </div>
+        </a>
         <div class="stat-card stat-card-team">
             <div class="stat-header">
                 <div class="stat-label">Active teams</div>

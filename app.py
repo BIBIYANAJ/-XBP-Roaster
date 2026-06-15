@@ -1155,6 +1155,20 @@ def employee_dashboard():
     schedule_data = {s.date: s.shift_type for s in shifts}
     return render_template('employee_dashboard.html', employee=employee, dates=dates, schedule_data=schedule_data)
 
+@app.route('/all_employees')
+def all_employees():
+    if not session.get('is_admin'):
+        return redirect(url_for('login'))
+    
+    search = request.args.get('search', '').lower()
+    query = Employee.query
+    if search:
+        query = query.filter(
+            (Employee.name.contains(search)) | 
+            (Employee.email.contains(search))
+        )
+    employees = query.order_by(Employee.name).all()
+    return render_template('all_employees.html', employees=employees, search=search)
 # --- Send Schedules (with roster image) ---
 
 @app.route('/send_schedules', methods=['POST'])
