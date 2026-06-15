@@ -272,7 +272,7 @@ main {
 .calendar-day.cell-shift-L .day-number,
 .calendar-day.cell-shift-G .day-number { color: #ffffff; }
 
-.calendar-day.cell-shift-M:hover { background-color: #c4971f; }
+.calendar-day.cell-shift-M:hover { background-color: #c0a355; }
 .calendar-day.cell-shift-A:hover { background-color: #b84a03; }
 .calendar-day.cell-shift-N:hover { background-color: #1558c0; }
 .calendar-day.cell-shift-O:hover { background-color: #14622b; }
@@ -484,7 +484,7 @@ main {
 
 .roster-table th,
 .roster-table td {
-    border: 1px solid #d0d7de;
+    border: 1px solid #000000; /* Changed from #d0d7de to black */
     padding: 10px;
     text-align: center;
 }
@@ -539,7 +539,7 @@ main {
     border-collapse: collapse;
     font-family: 'Segoe UI', system-ui, sans-serif;
     font-size: 15px;
-    border: 1px solid #d0d7de;
+    border: 2px solid #000000; /* Increased thickness and set to black */
     background-color: #ffffff;
 }
 
@@ -574,13 +574,18 @@ main {
 }
 
 .mini-style td {
-    border: 1px solid #d0d7de;
+    border: 1px solid #000000; /* Changed from #d0d7de to black */
     text-align: center;
     padding: 9px 6px;
     min-width: 42px;
     height: 42px;
     color: #1f2328;
     background-color: #ffffff;
+}
+
+.main-blue-header th, 
+.day-num-header th {
+    border: 1px solid #000000 !important;
 }
 
 .employee-name-fixed {
@@ -594,7 +599,7 @@ main {
     color: #1f2328;
     z-index: 5;
     min-width: 160px;
-    border-right: 2px solid #d0d7de !important;
+    border-right: 2px solid #000000 !important; 
 }
 
 .mini-style tr:nth-child(even) td:not([class*="shift-"]) {
