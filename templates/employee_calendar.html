@@ -495,20 +495,17 @@
     <script>
         const employeeId = {{ employee.id }};
         const isAdmin = {{ 'true' if is_admin else 'false' }};
+        
         let selectedDates = new Set();
         let history = [new Set()]; 
         let historyIndex = 0;
         let isMouseDown = false;
-        let isSelecting = true; // True to select, false to deselect
+        let isSelecting = true;
 
-        // Update the calendar HTML generation (in the loop)
-        // Add these attributes to your calendar-day div:
-        // onmousedown="startSelection(this)" onmouseover="handleMouseOver(this)"
-
+        // ── Excel-like Selection ────────────────────────────────────
         function startSelection(el) {
             isMouseDown = true;
             const d = el.dataset.date;
-            // Determine mode: if clicking an already selected date, we deselect
             isSelecting = !selectedDates.has(d);
             toggleDate(el);
         }
@@ -516,22 +513,20 @@
         function handleMouseOver(el) {
             if (isMouseDown) {
                 const d = el.dataset.date;
-                if (isSelecting && !selectedDates.has(d)) {
-                    toggleDate(el);
-                } else if (!isSelecting && selectedDates.has(d)) {
+                if (isSelecting !== selectedDates.has(d)) {
                     toggleDate(el);
                 }
             }
         }
 
-        // Global mouse up to stop selection
         document.addEventListener('mouseup', () => {
             if (isMouseDown) {
                 isMouseDown = false;
-                saveState(); // Save to history only after drag is finished
+                saveState();
             }
         });
 
+        // ── Undo/Redo ──────────────────────────────────────────────
         function saveState() {
             const current = new Set(selectedDates);
             const last = history[historyIndex];
@@ -558,23 +553,17 @@
 
         function applyHistoryState(stateSet) {
             selectedDates = new Set(stateSet);
-            // Update visual state
             document.querySelectorAll('.calendar-day').forEach(el => {
-                if (selectedDates.has(el.dataset.date)) {
-                    el.classList.add('selected');
-                } else {
-                    el.classList.remove('selected');
-                }
+                if (selectedDates.has(el.dataset.date)) el.classList.add('selected');
+                else el.classList.remove('selected');
             });
             updateSelCount();
         }
-        // Current displayed month (for picker initialization)
-        const pageYear  = {{ current_date.year }};
-        const pageMonth = {{ current_date.month - 1 }}; // 0-indexed
 
-        // ── Main calendar ──────────────────────────────────────────
+        // ── Core Functions ────────────────────────────────────────
         function toggleDate(el) {
             const d = el.dataset.date;
+            if (!d) return;
             if (selectedDates.has(d)) {
                 selectedDates.delete(d);
                 el.classList.remove('selected');
@@ -583,7 +572,6 @@
                 el.classList.add('selected');
             }
             updateSelCount();
-            saveState(); 
         }
 
         function updateSelCount() {
@@ -597,6 +585,7 @@
             selectedDates.clear();
             document.querySelectorAll('.calendar-day.selected').forEach(el => el.classList.remove('selected'));
             updateSelCount();
+            saveState();
         }
 
         function applyShift(shiftType) {
@@ -650,6 +639,7 @@
                 }
             });
             updateSelCount();
+            saveState();
         }
 
         function overlayClick(e) {
