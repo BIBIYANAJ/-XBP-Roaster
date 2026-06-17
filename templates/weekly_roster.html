@@ -209,7 +209,52 @@
         function closeConfirm() {
             document.getElementById('confirm-modal').classList.remove('open');
         }
+        let history = [new Set()]; 
+        let historyIndex = 0;
 
+        function saveState() {
+            // Convert current selection to a sorted array to compare
+            const currentArray = [...selectedCells.keys()].sort();
+            const lastArray = [...history[historyIndex]].sort();
+            
+            if (JSON.stringify(currentArray) === JSON.stringify(lastArray)) return;
+
+            history = history.slice(0, historyIndex + 1);
+            history.push(new Set(selectedCells.keys()));
+            historyIndex++;
+        }
+
+        function undo() {
+            if (historyIndex > 0) {
+                historyIndex--;
+                applyHistoryState(history[historyIndex]);
+            }
+        }
+
+        function redo() {
+            if (historyIndex < history.length - 1) {
+                historyIndex++;
+                applyHistoryState(history[historyIndex]);
+            }
+        }
+
+        function applyHistoryState(stateSet) {
+            // 1. Clear current UI
+            selectedCells.forEach(c => c.el.classList.remove('cell-selected'));
+            selectedCells.clear();
+            
+            // 2. Restore from state
+            stateSet.forEach(key => {
+                const [empId, date] = key.split('|');
+                const el = document.querySelector(`[data-employee-id="${empId}"][data-date="${date}"]`);
+                if (el) {
+                    selectedCells.set(key, {employee_id: parseInt(empId), date: date, el: el});
+                    el.classList.add('cell-selected');
+                }
+            });
+            // Update count label
+            document.getElementById('sel-count').textContent = selectedCells.size > 0 ? `${selectedCells.size} cell(s) selected` : '';
+        }
         let _hideTimer = null;
         function showEmpPopup(e, el) {
             e.stopPropagation();

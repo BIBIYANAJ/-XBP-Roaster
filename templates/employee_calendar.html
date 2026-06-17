@@ -356,6 +356,9 @@
             {% if is_admin %}
             <!-- Shift Assignment Controls -->
             <div class="shift-selector-bar">
+                <button onclick="undo()" style="background:#6c757d; color:#fff; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;">⟲ Undo</button>
+                <button onclick="redo()" style="background:#6c757d; color:#fff; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;">⟳ Redo</button>
+                <span style="margin-left:10px;">|</span>
                 <span><strong>Select dates, then click a shift:</strong></span>
                 <button class="shift-button shift-M" data-shift="M" onclick="applyShift('M')">Morning (M)</button>
                 <button class="shift-button shift-A" data-shift="A" onclick="applyShift('A')">Afternoon (A)</button>
@@ -489,7 +492,45 @@
         const employeeId = {{ employee.id }};
         const isAdmin = {{ 'true' if is_admin else 'false' }};
         let selectedDates = new Set();
+        let history = [new Set()]; 
+        let historyIndex = 0;
 
+        function saveState() {
+            const current = new Set(selectedDates);
+            const last = history[historyIndex];
+            if (JSON.stringify([...current].sort()) === JSON.stringify([...last].sort())) return;
+
+            history = history.slice(0, historyIndex + 1);
+            history.push(current);
+            historyIndex++;
+        }
+
+        function undo() {
+            if (historyIndex > 0) {
+                historyIndex--;
+                applyHistoryState(history[historyIndex]);
+            }
+        }
+
+        function redo() {
+            if (historyIndex < history.length - 1) {
+                historyIndex++;
+                applyHistoryState(history[historyIndex]);
+            }
+        }
+
+        function applyHistoryState(stateSet) {
+            selectedDates = new Set(stateSet);
+            // Update visual state
+            document.querySelectorAll('.calendar-day').forEach(el => {
+                if (selectedDates.has(el.dataset.date)) {
+                    el.classList.add('selected');
+                } else {
+                    el.classList.remove('selected');
+                }
+            });
+            updateSelCount();
+        }
         // Current displayed month (for picker initialization)
         const pageYear  = {{ current_date.year }};
         const pageMonth = {{ current_date.month - 1 }}; // 0-indexed
@@ -505,6 +546,7 @@
                 el.classList.add('selected');
             }
             updateSelCount();
+            saveState(); 
         }
 
         function updateSelCount() {
@@ -548,7 +590,7 @@
             url.searchParams.set('date', dateStr);
             window.location.href = url.href;
         }
-
+        
         // ── Multi-date picker ──────────────────────────────────────
         let pickerYear  = pageYear;
         let pickerMonth = pageMonth;
@@ -793,7 +835,52 @@
                 }
             });
         });
+        let history = [new Set()]; 
+        let historyIndex = 0;
 
+        function saveState() {
+            // Convert current selection to a sorted array to compare
+            const currentArray = [...selectedCells.keys()].sort();
+            const lastArray = [...history[historyIndex]].sort();
+            
+            if (JSON.stringify(currentArray) === JSON.stringify(lastArray)) return;
+
+            history = history.slice(0, historyIndex + 1);
+            history.push(new Set(selectedCells.keys()));
+            historyIndex++;
+        }
+
+        function undo() {
+            if (historyIndex > 0) {
+                historyIndex--;
+                applyHistoryState(history[historyIndex]);
+            }
+        }
+
+        function redo() {
+            if (historyIndex < history.length - 1) {
+                historyIndex++;
+                applyHistoryState(history[historyIndex]);
+            }
+        }
+
+        function applyHistoryState(stateSet) {
+            // 1. Clear current UI
+            selectedCells.forEach(c => c.el.classList.remove('cell-selected'));
+            selectedCells.clear();
+            
+            // 2. Restore from state
+            stateSet.forEach(key => {
+                const [empId, date] = key.split('|');
+                const el = document.querySelector(`[data-employee-id="${empId}"][data-date="${date}"]`);
+                if (el) {
+                    selectedCells.set(key, {employee_id: parseInt(empId), date: date, el: el});
+                    el.classList.add('cell-selected');
+                }
+            });
+            // Update count label
+            document.getElementById('sel-count').textContent = selectedCells.size > 0 ? `${selectedCells.size} cell(s) selected` : '';
+        }
         function saveTemplate() {
             const name = document.getElementById('tpl-name').value.trim();
             if (!name) { showNotification('Enter a template name.', 'warning'); return; }
