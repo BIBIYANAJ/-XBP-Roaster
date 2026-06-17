@@ -921,14 +921,15 @@
                 </div>
                 <div class="stat-num">{{ total_employees }}</div>
             </div>
-        </a>
-        <div class="stat-card stat-card-team">
-            <div class="stat-header">
-                <div class="stat-label">TEAM DETAILS</div>
-                <div class="stat-icon">⊞</div>
+        <a href="{{ url_for('team_details_view') }}" style="text-decoration: none; color: inherit;">
+            <div class="stat-card stat-card-team">
+                <div class="stat-header">
+                    <div class="stat-label">TEAM DETAILS</div>
+                    <div class="stat-icon">⊞</div>
+                </div>
+                <div class="stat-num">{{ active_teams }}</div>
             </div>
-            <div class="stat-num">{{ active_teams }}</div>
-        </div>
+        </a>
     </div>
 
     <!-- Today's Overview -->

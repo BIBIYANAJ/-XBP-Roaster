@@ -528,6 +528,20 @@ def roster_search():
         'results': [{'name': e.name, 'shift': shift_map.get(e.id, 'N/A')} for e in employees]
     })
 
+@app.route('/team_details_view')
+def team_details_view():
+    if not session.get('is_admin'):
+        return redirect(url_for('login'))
+    
+    # Get all teams
+    teams = Team.query.all()
+    # Filter members to exclude admin
+    team_data = []
+    for team in teams:
+        members = [m for m in team.members if not m.is_admin]
+        team_data.append({'name': team.name, 'members': members})
+        
+    return render_template('team_details.html', team_data=team_data)
 # --- Send Schedule (individual) ---
 
 @app.route('/send_schedule/<int:employee_id>', methods=['POST'])
