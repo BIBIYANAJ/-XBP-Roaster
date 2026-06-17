@@ -496,8 +496,6 @@
     <script>
         const employeeId = {{ employee.id }};
         const isAdmin = {{ 'true' if is_admin else 'false' }};
-        
-        // Define these FIRST
         const pageYear  = {{ current_date.year }};
         const pageMonth = {{ current_date.month - 1 }};
         
@@ -507,11 +505,7 @@
         let isMouseDown = false;
         let isSelecting = true;
 
-        // Define these AFTER pageYear/pageMonth
-        let pickerYear  = pageYear;
-        let pickerMonth = pageMonth;
-
-        // ── Excel-like Selection ────────────────────────────────────
+        // ── Selection Logic ────────────────────────────────────
         function startSelection(el) {
             isMouseDown = true;
             const d = el.dataset.date;
@@ -535,12 +529,10 @@
             }
         });
 
-        // ── Undo/Redo ──────────────────────────────────────────────
+        // ── Undo/Redo Logic ──────────────────────────────────────────────
         function saveState() {
-            // Get current shifts from the DOM (or your schedule_data object)
             const currentShifts = {};
             document.querySelectorAll('.calendar-day').forEach(el => {
-                // Find the shift label (the text inside the cell)
                 const label = el.querySelector('.cell-shift-label');
                 if(label) currentShifts[el.dataset.date] = label.textContent;
             });
@@ -572,12 +564,9 @@
 
         function applyHistoryState(state) {
             selectedDates = new Set(state.selections);
-            // Restore selection UI
             document.querySelectorAll('.calendar-day').forEach(el => {
                 const d = el.dataset.date;
                 el.classList.toggle('selected', selectedDates.has(d));
-                
-                // Restore shift UI
                 const shift = state.shifts[d];
                 const labelDiv = el.querySelector('.cell-shift-label');
                 if (shift) {
@@ -591,7 +580,6 @@
             updateSelCount();
         }
 
-        // ── Core Functions ────────────────────────────────────────
         function toggleDate(el) {
             const d = el.dataset.date;
             if (!d) return;
@@ -603,7 +591,6 @@
                 el.classList.add('selected');
             }
             updateSelCount();
-            saveState();
         }
 
         function updateSelCount() {
@@ -617,15 +604,12 @@
             selectedDates.clear();
             document.querySelectorAll('.calendar-day.selected').forEach(el => el.classList.remove('selected'));
             updateSelCount();
-            saveState();
+            saveState(); // ADDED
         }
 
         function applyShift(shiftType) {
             if (!isAdmin) return;
-            if (selectedDates.size === 0) {
-                showNotification('Select at least one date first, then click a shift.', 'warning');
-                return;
-            }
+            if (selectedDates.size === 0) return;
             const dates = Array.from(selectedDates);
             fetch('{{ url_for("update_employee_shift") }}', {
                 method: 'POST',
@@ -634,13 +618,13 @@
             })
             .then(r => r.json())
             .then(data => {
-                showNotification(data.message, data.status === 'success' ? 'success' : 'warning');
                 if (data.status === 'success') {
-                    saveState();
-                    setTimeout(() => window.location.reload(), 800);
+                    saveState(); // ADDED
+                    window.location.reload();
+                } else {
+                    alert(data.message);
                 }
-            })
-            .catch(() => showNotification('Error updating shifts.', 'error'));
+            });
         }
 
         function jumpToDate(dateStr) {
