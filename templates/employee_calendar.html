@@ -572,6 +572,7 @@
                 el.classList.add('selected');
             }
             updateSelCount();
+            saveState(); // ADD THIS LINE
         }
 
         function updateSelCount() {
@@ -866,14 +867,11 @@
         let historyIndex = 0;
 
         function saveState() {
-            // Convert current selection to a sorted array to compare
-            const currentArray = [...selectedCells.keys()].sort();
-            const lastArray = [...history[historyIndex]].sort();
-            
-            if (JSON.stringify(currentArray) === JSON.stringify(lastArray)) return;
-
+            const current = new Set(selectedDates);
+            const last = history[historyIndex];
+            if (JSON.stringify([...current].sort()) === JSON.stringify([...last].sort())) return;
             history = history.slice(0, historyIndex + 1);
-            history.push(new Set(selectedCells.keys()));
+            history.push(current);
             historyIndex++;
         }
 
@@ -892,21 +890,23 @@
         }
 
         function applyHistoryState(stateSet) {
-            // 1. Clear current UI
-            selectedCells.forEach(c => c.el.classList.remove('cell-selected'));
-            selectedCells.clear();
+            // 1. Clear current UI selections
+            selectedDates = new Set(stateSet);
             
-            // 2. Restore from state
-            stateSet.forEach(key => {
-                const [empId, date] = key.split('|');
-                const el = document.querySelector(`[data-employee-id="${empId}"][data-date="${date}"]`);
-                if (el) {
-                    selectedCells.set(key, {employee_id: parseInt(empId), date: date, el: el});
-                    el.classList.add('cell-selected');
+            // 2. Refresh the visual state of all calendar cells
+            document.querySelectorAll('.calendar-day').forEach(el => {
+                const date = el.dataset.date;
+                if (date) {
+                    if (selectedDates.has(date)) {
+                        el.classList.add('selected');
+                    } else {
+                        el.classList.remove('selected');
+                    }
                 }
             });
-            // Update count label
-            document.getElementById('sel-count').textContent = selectedCells.size > 0 ? `${selectedCells.size} cell(s) selected` : '';
+
+            // 3. Update count label
+            updateSelCount();
         }
         function saveTemplate() {
             const name = document.getElementById('tpl-name').value.trim();
