@@ -262,8 +262,13 @@ def generate_roster_image(employees, dates, schedule_data, title, team_name='', 
         draw_centered(g['label'], gx, y_wk, gw, wk_h, font_wk, (255, 255, 255))
         # right divider
         draw.line([gx + gw - 1, y_wk, gx + gw - 1, y_wk + wk_h - 1],
-                  fill=(255, 255, 255), width=2)
-
+                  fill=(0, 0, 0), width=2)
+    draw.line([x_start, y_date, x_start + name_w + total_cols_w, y_date],
+              fill=(0, 0, 0), width=2)
+    draw.line([x_start, y_data, x_start + name_w + total_cols_w, y_data],
+              fill=(0, 0, 0), width=2)
+    draw.line([x_start + name_w, y_wk, x_start + name_w, y_data + row_h * len(employees)],
+              fill=(0, 0, 0), width=3)
     # ── Date + day header row ──────────────────────────────────────
     HEADER_DATE_BG  = (92, 122, 190)
     HEADER_DATE_BG2 = (108, 138, 205)
@@ -281,7 +286,7 @@ def generate_roster_image(employees, dates, schedule_data, title, team_name='', 
                       font_dayname, (210, 230, 255))
         # column divider
         draw.line([x + col_w - 1, y_date, x + col_w - 1, y_date + date_h - 1],
-                  fill=(255, 255, 255), width=1)
+                  fill=(0, 0, 0), width=2)
 
     # ── Employee data rows ─────────────────────────────────────────
     for row_i, emp in enumerate(employees):
@@ -308,19 +313,20 @@ def generate_roster_image(employees, dates, schedule_data, title, team_name='', 
         # row bottom border
         draw.line([x_start, y + row_h - 1,
                    x_start + name_w + total_cols_w, y + row_h - 1],
-                  fill=(200, 210, 225), width=1)
+                  fill=(0, 0, 0), width=2)
 
     # Vertical grid lines
+    # Vertical grid lines - BLACK
     for col_i in range(len(dates) + 1):
         lx = x_start + name_w + col_i * col_w
         draw.line([lx, y_date, lx, y_data + row_h * len(employees)],
-                  fill=(200, 210, 225), width=1)
+                fill=(0, 0, 0), width=2)
 
-    # Outer border
+    # Outer border - BLACK thick
     draw.rectangle([x_start, y_wk,
                     x_start + name_w + total_cols_w,
                     y_data + row_h * len(employees)],
-                   outline=(100, 120, 160), width=2)
+                outline=(0, 0, 0), width=3)
 
     # ── Legend footer ──────────────────────────────────────────────
     y_legend = y_data + row_h * len(employees) + padding

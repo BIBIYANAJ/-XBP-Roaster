@@ -21,6 +21,9 @@
         <!-- Shift Selector Bar -->
         <div class="roster-shift-bar">
             <strong>Select cells, then click a shift:</strong>
+            <button onclick="undo()">⟲ Undo</button>
+            <button onclick="redo()">⟳ Redo</button>
+            <span>|</span>
             <button class="shift-button shift-M" onclick="applyRosterShift('M')">Morning (M)</button>
             <button class="shift-button shift-A" onclick="applyRosterShift('A')">Afternoon (A)</button>
             <button class="shift-button shift-N" onclick="applyRosterShift('N')">Night (N)</button>
@@ -75,7 +78,7 @@
                             <td class="mini-cell shift-{{ shift_type }}{% if date.weekday() >= 5 %} weekend-td{% endif %}"
                                 data-employee-id="{{ employee.id }}"
                                 data-date="{{ date_str }}"
-                                onclick="toggleCell(this)"
+                                onclick="toggleCell(this, event)"
                                 title="{{ employee.name }} – {{ date.strftime('%A, %d %b') }}">
                                 {{ shift_type if shift_type in ['M','A','N','L','G'] else (shift_type if shift_type == 'O' else '') }}
                             </td>
@@ -121,22 +124,44 @@
     <script>
         const teamId = {{ team.id }};
         let selectedCells = new Map();
+        let lastClickedCell = null;
 
-        function toggleCell(el) {
+
+        function toggleCell(el, event) {
             const key = `${el.dataset.employeeId}|${el.dataset.date}`;
-            if (selectedCells.has(key)) {
-                selectedCells.delete(key);
-                el.classList.remove('cell-selected');
+
+            if (event && event.shiftKey && lastClickedCell) {
+                const allCells = Array.from(document.querySelectorAll('.mini-cell[data-employee-id][data-date]'));
+                const idx1 = allCells.indexOf(lastClickedCell);
+                const idx2 = allCells.indexOf(el);
+                if (idx1 !== -1 && idx2 !== -1) {
+                    const [from, to] = [Math.min(idx1, idx2), Math.max(idx1, idx2)];
+                    const adding = !selectedCells.has(key);
+                    for (let i = from; i <= to; i++) {
+                        const cell = allCells[i];
+                        const k = `${cell.dataset.employeeId}|${cell.dataset.date}`;
+                        if (adding) {
+                            selectedCells.set(k, {employee_id: parseInt(cell.dataset.employeeId), date: cell.dataset.date, el: cell});
+                            cell.classList.add('cell-selected');
+                        } else {
+                            selectedCells.delete(k);
+                            cell.classList.remove('cell-selected');
+                        }
+                    }
+                }
             } else {
-                selectedCells.set(key, {
-                    employee_id: parseInt(el.dataset.employeeId),
-                    date: el.dataset.date,
-                    el
-                });
-                el.classList.add('cell-selected');
+                if (selectedCells.has(key)) {
+                    selectedCells.delete(key);
+                    el.classList.remove('cell-selected');
+                } else {
+                    selectedCells.set(key, {employee_id: parseInt(el.dataset.employeeId), date: el.dataset.date, el});
+                    el.classList.add('cell-selected');
+                }
+                lastClickedCell = el;
             }
             document.getElementById('sel-count').textContent =
                 selectedCells.size > 0 ? `${selectedCells.size} cell(s) selected` : '';
+            saveState();
         }
 
         function clearRosterSelection() {
