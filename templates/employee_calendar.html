@@ -362,6 +362,7 @@
                 </div>
                 <span style="margin-left:10px;">|</span>
                 <span><strong>Select dates, then click a shift:</strong></span>
+
                 <button class="shift-button shift-M" data-shift="M" onclick="applyShift('M')">Morning (M)</button>
                 <button class="shift-button shift-A" data-shift="A" onclick="applyShift('A')">Afternoon (A)</button>
                 <button class="shift-button shift-N" data-shift="N" onclick="applyShift('N')">Night (N)</button>
@@ -441,10 +442,9 @@
                     {% set shift_type = schedule_data.get(date.strftime('%Y-%m-%d'), '') %}
                     <div class="calendar-day {% if date.month != current_date.month %}other-month{% endif %} {% if shift_type %}cell-shift-{{ shift_type }}{% endif %} {% if is_admin and date.month == current_date.month %}selectable{% endif %}"
                         data-date="{{ date.strftime('%Y-%m-%d') }}"
-                        {% if is_admin and date.month == current_date.month %}
-                            onmousedown="startSelection(this)" 
-                            onmouseover="handleMouseOver(this)"
-                        {% endif %}>
+                        onmousedown="startSelection(this)" 
+                        onmouseover="handleMouseOver(this)"
+                        onclick="toggleDate(this)">
                         <div class="day-number">{{ date.day }}</div>
                         {% if shift_type %}
                             <div class="cell-shift-label">{{ shift_type }}</div>
@@ -497,11 +497,19 @@
         const employeeId = {{ employee.id }};
         const isAdmin = {{ 'true' if is_admin else 'false' }};
         
+        // Define these FIRST
+        const pageYear  = {{ current_date.year }};
+        const pageMonth = {{ current_date.month - 1 }};
+        
         let selectedDates = new Set();
-        let history = [{ selections: new Set(), shifts: {} }]; // Store both selection AND shift state
+        let history = [{ selections: new Set(), shifts: {} }]; 
         let historyIndex = 0;
         let isMouseDown = false;
         let isSelecting = true;
+
+        // Define these AFTER pageYear/pageMonth
+        let pickerYear  = pageYear;
+        let pickerMonth = pageMonth;
 
         // ── Excel-like Selection ────────────────────────────────────
         function startSelection(el) {
@@ -595,6 +603,7 @@
                 el.classList.add('selected');
             }
             updateSelCount();
+            saveState();
         }
 
         function updateSelCount() {
