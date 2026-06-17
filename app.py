@@ -35,7 +35,7 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
 }
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
-db = SQLAlchemy(app)
+
 
 # --- Email Configuration (Using Brevo on Port 2525) ---
 SMTP_SERVER   = 'smtp-relay.brevo.com'
@@ -1285,26 +1285,28 @@ def send_schedules():
         return jsonify({'status': 'error', 'message': err_detail}), 500
 
 # --- App Initialization ---
-
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
+        # Create default admin user if it doesn't exist
         if not Employee.query.filter_by(email="admin@exmaplegmail.com").first():
-            # Create default admin user
             admin = Employee(
                 name="Admin User",
                 email="admin@exmaplegmail.com",
                 is_admin=True,
-                team_id=1  # Replace with the actual team ID if different
+                password="admin123"
             )
             db.session.add(admin)
-        # Migrate legacy team_id -> many-to-many on first run
+            db.session.commit()
+        
+        # Migrate legacy team_id
         for emp in Employee.query.all():
             if emp.team_id and len(emp.teams) == 0:
                 team = db.session.get(Team, emp.team_id)
                 if team:
                     emp.teams.append(team)
         db.session.commit()
+    
     app.run(debug=True)
 # --- App Initialization (Move this OUTSIDE of the if __name__ block) ---
 with app.app_context():
