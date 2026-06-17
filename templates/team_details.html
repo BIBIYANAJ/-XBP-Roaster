@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .styled-table { width: 80%; margin: 20px auto; border-collapse: collapse; }
+        .styled-table th, .styled-table td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        .styled-table th { background: #f6f8fa; }
+    </style>
+</head>
+<body>
+    <main style="padding: 20px;">
+        <a href="{{ url_for('admin_dashboard') }}">← Back to Dashboard</a>
+        <h2>Team & Employee Overview</h2>
+        <table class="styled-table">
+            <thead>
+                <tr>
+                    <th>Team</th>
+                    <th>Employees Name</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% if team_data %}
+                {% for item in team_data %}
+                <tr>
+                    <td><strong>{{ item.name }}</strong></td>
+                    <td>
+                        {% for member in item.members %}
+                            {{ loop.index }}. {{ member.name }}<br>
+                        {% else %}
+                            <em>No members assigned</em>
+                        {% endfor %}
+                    </td>
+                </tr>
+                {% endfor %}
+            {% else %}
+                <tr>
+                    <td colspan="2">No data found. Is the database empty?</td>
+                </tr>
+            {% endif %}
+        </tbody>
+        </table>
+    </main>
+</body>
+</html>
