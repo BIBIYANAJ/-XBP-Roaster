@@ -652,7 +652,6 @@ def admin_dashboard():
     team_counts = {t.id: len(t.members) for t in teams}
     today = datetime.date.today()
     total_employees = Employee.query.count()
-    shifts_today    = Shift.query.filter_by(date=today).count()
     rosters_active  = db.session.query(Shift.employee_id).filter(
         Shift.date >= today.replace(day=1)).distinct().count()
     employees = Employee.query.order_by(Employee.name).all()
@@ -676,7 +675,6 @@ def admin_dashboard():
         employees=employees,
         total_employees=total_employees,
         active_teams=len(teams),
-        shifts_today=shifts_today,
         rosters_active=rosters_active,
         today=today,
         today_by_shift=today_by_shift,
