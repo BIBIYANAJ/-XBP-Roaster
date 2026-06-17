@@ -1504,31 +1504,25 @@
         const team  = document.getElementById('s-team').value;
         const shift = document.getElementById('s-shift').value;
         const p = new URLSearchParams({dates});
-        if (team)  p.set('team_id',    team);
+        if (team)  p.set('team_id', team);
         if (shift) p.set('shift_type', shift);
+
         fetch('/api/roster_search?' + p)
             .then(r => r.json())
             .then(data => {
                 const box = document.getElementById('search-results');
                 box.style.display = 'block';
                 if (data.error) { box.innerHTML = `<span style="color:#f85149">${data.error}</span>`; return; }
-                const sl = {M:'Morning',A:'Afternoon',N:'Night',L:'Leave',O:'OFF',G:'General'};
-                const shiftTxt = shift ? sl[shift] : 'any shift';
-                let html = `<strong style="color:#f0f6fc">${data.count} member(s)</strong>`;
-                html += data.count === 0
-                    ? ' &nbsp;<em style="color:#8b949e">No members found.</em>'
-                    : ': &nbsp;' + data.names.map(n =>
-                        `<span style="display:inline-block;background:#f6f8fa;border:1px solid #d0d7de;border-radius:12px;padding:3px 10px;margin:3px;font-size:0.9em;color:#1f2328">👤 ${n}</span>`
-                      ).join('');
+                
+                let html = `<strong style="color:#f0f6fc">${data.count} member(s) found:</strong><br><br>`;
+                html += data.results.map(res => 
+                    `<span style="display:inline-block;background:#f6f8fa;border:1px solid #d0d7de;border-radius:12px;padding:3px 10px;margin:3px;font-size:0.9em;color:#1f2328">
+                        👤 ${res.name} <b style="color:#0969da">(${res.shift})</b>
+                    </span>`
+                ).join('');
                 box.innerHTML = html;
-            })
-            .catch(() => {
-                const box = document.getElementById('search-results');
-                box.style.display = 'block';
-                box.innerHTML = '<span style="color:#f85149">Search error.</span>';
             });
     }
-
     /* ── Forms ──────────────────────────────────────────────── */
     document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('create-team-form').addEventListener('submit', function(e) {

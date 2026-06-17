@@ -494,55 +494,38 @@ def search_shift():
 
 @app.route('/api/roster_search')
 def roster_search():
-    """Search: team (optional) + shift_type (optional) + dates (required, comma-separated)."""
     if not session.get('is_admin'):
         return jsonify({'error': 'Permission denied'}), 403
 
     team_id = request.args.get('team_id')
     shift_type = request.args.get('shift_type')
-    dates_param = request.args.get('dates') or request.args.get('date')
+    dates_param = request.args.get('dates')
 
     if not dates_param:
         return jsonify({'error': 'date required'}), 400
 
-    dates = []
-    for ds in dates_param.split(','):
-        ds = ds.strip()
-        if not ds:
-            continue
-        try:
-            dates.append(datetime.datetime.strptime(ds, '%Y-%m-%d').date())
-        except ValueError:
-            return jsonify({'error': f'invalid date: {ds}'}), 400
+    dates = [datetime.datetime.strptime(ds.strip(), '%Y-%m-%d').date() for ds in dates_param.split(',')]
 
-    if not dates:
-        return jsonify({'error': 'date required'}), 400
-
+    # Query only non-admin employees
+    query = Employee.query.filter_by(is_admin=False)
     if team_id and team_id != '':
-        employees = get_employees_for_team(int(team_id))
-    else:
-        employees = Employee.query.all()
+        query = query.join(employee_team).filter(employee_team.c.team_id == int(team_id))
+    
+    employees = query.all()
 
-    if not shift_type or shift_type == '':
-        return jsonify({
-            'mode': 'all',
-            'count': len(employees),
-            'names': [e.name for e in employees],
-        })
+    # Get shifts for these employees on the selected date (using the first date in the list for simplicity)
+    search_date = dates[0]
+    shifts = Shift.query.filter(Shift.date == search_date, Shift.employee_id.in_([e.id for e in employees])).all()
+    shift_map = {s.employee_id: s.shift_type for s in shifts}
 
-    emp_ids = [e.id for e in employees]
-    shifts = Shift.query.filter(
-        Shift.employee_id.in_(emp_ids),
-        Shift.date.in_(dates),
-        Shift.shift_type == shift_type,
-    ).all()
-    matched_ids = {s.employee_id for s in shifts}
-    matched = [e for e in employees if e.id in matched_ids]
+    # Filter by shift type if provided
+    if shift_type and shift_type != '':
+        employees = [e for e in employees if shift_map.get(e.id) == shift_type]
+
     return jsonify({
         'mode': 'filtered',
-        'count': len(matched),
-        'names': [e.name for e in matched],
-        'date_count': len(dates),
+        'count': len(employees),
+        'results': [{'name': e.name, 'shift': shift_map.get(e.id, 'N/A')} for e in employees]
     })
 
 # --- Send Schedule (individual) ---
