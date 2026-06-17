@@ -48,12 +48,18 @@
 </main>
 
 <script>
-    // Optional: Real-time search that includes the Serial Number
     document.getElementById('search-input').addEventListener('keyup', function() {
         let val = this.value.toLowerCase();
+        let visibleCount = 1;
         document.querySelectorAll('.emp-row').forEach(row => {
             let text = row.innerText.toLowerCase();
-            row.style.display = text.includes(val) ? '' : 'none';
+            if (text.includes(val)) {
+                row.style.display = '';
+                // Update the first column (S.No) of the visible row
+                row.querySelector('td:first-child').innerText = visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
         });
     });
 </script>

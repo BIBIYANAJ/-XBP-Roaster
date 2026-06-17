@@ -651,7 +651,7 @@ def admin_dashboard():
     teams = Team.query.all()
     team_counts = {t.id: len(t.members) for t in teams}
     today = datetime.date.today()
-    total_employees = Employee.query.count()
+    total_employees = Employee.query.filter_by(is_admin=False).count()
     rosters_active  = db.session.query(Shift.employee_id).filter(
         Shift.date >= today.replace(day=1)).distinct().count()
     employees = Employee.query.order_by(Employee.name).all()
@@ -1159,7 +1159,9 @@ def all_employees():
         return redirect(url_for('login'))
     
     search = request.args.get('search', '').lower()
-    query = Employee.query
+    # Query only non-admin employees
+    query = Employee.query.filter_by(is_admin=False) 
+    
     if search:
         query = query.filter(
             (Employee.name.contains(search)) | 
