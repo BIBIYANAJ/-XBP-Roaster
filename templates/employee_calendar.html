@@ -438,8 +438,12 @@
                 {% for date in calendar_dates %}
                     {% set shift_type = schedule_data.get(date.strftime('%Y-%m-%d'), '') %}
                     <div class="calendar-day {% if date.month != current_date.month %}other-month{% endif %} {% if shift_type %}cell-shift-{{ shift_type }}{% endif %}"
-                         data-date="{{ date.strftime('%Y-%m-%d') }}"
-                         {% if is_admin and date.month == current_date.month %}onclick="toggleDate(this)"{% endif %}>
+                        data-date="{{ date.strftime('%Y-%m-%d') }}"
+                        onmousedown="startSelection(this)" 
+                        onmouseover="handleMouseOver(this)"
+                        {% if is_admin and date.month == current_date.month %}
+                            class="selectable"
+                        {% endif %}>
                         <div class="day-number">{{ date.day }}</div>
                         {% if shift_type %}
                             <div class="cell-shift-label">{{ shift_type }}</div>
@@ -494,6 +498,39 @@
         let selectedDates = new Set();
         let history = [new Set()]; 
         let historyIndex = 0;
+        let isMouseDown = false;
+        let isSelecting = true; // True to select, false to deselect
+
+        // Update the calendar HTML generation (in the loop)
+        // Add these attributes to your calendar-day div:
+        // onmousedown="startSelection(this)" onmouseover="handleMouseOver(this)"
+
+        function startSelection(el) {
+            isMouseDown = true;
+            const d = el.dataset.date;
+            // Determine mode: if clicking an already selected date, we deselect
+            isSelecting = !selectedDates.has(d);
+            toggleDate(el);
+        }
+
+        function handleMouseOver(el) {
+            if (isMouseDown) {
+                const d = el.dataset.date;
+                if (isSelecting && !selectedDates.has(d)) {
+                    toggleDate(el);
+                } else if (!isSelecting && selectedDates.has(d)) {
+                    toggleDate(el);
+                }
+            }
+        }
+
+        // Global mouse up to stop selection
+        document.addEventListener('mouseup', () => {
+            if (isMouseDown) {
+                isMouseDown = false;
+                saveState(); // Save to history only after drag is finished
+            }
+        });
 
         function saveState() {
             const current = new Set(selectedDates);
