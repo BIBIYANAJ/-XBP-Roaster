@@ -10,8 +10,6 @@ from email.message import EmailMessage
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.image import MIMEImage
-
-from matplotlib import dates
 # ── Logging setup ─────────────────────────────────────────────────────────────
 logging.basicConfig(
     level=logging.DEBUG,
@@ -29,8 +27,14 @@ from PIL import Image, ImageDraw, ImageFont
 # --- Configuration ---
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your_super_secret_key_here'
+# Update the URI to include connection arguments
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://neondb_owner:npg_4sLTVfeAD0gt@ep-sweet-night-aowpnooc.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require'
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    "pool_pre_ping": True, # This prevents the SSL closed error
+    "pool_recycle": 300,
+}
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(app)
 db = SQLAlchemy(app)
 
 # --- Email Configuration (Using Brevo on Port 2525) ---
