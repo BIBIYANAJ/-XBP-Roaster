@@ -10,6 +10,8 @@ from email.message import EmailMessage
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.image import MIMEImage
+
+from matplotlib import dates
 # ── Logging setup ─────────────────────────────────────────────────────────────
 logging.basicConfig(
     level=logging.DEBUG,
@@ -521,17 +523,23 @@ def roster_search():
 
     # Get shifts for these employees on the selected date (using the first date in the list for simplicity)
     search_date = dates[0]
-    shifts = Shift.query.filter(Shift.date == search_date, Shift.employee_id.in_([e.id for e in employees])).all()
+    shifts = Shift.query.filter(
+        Shift.date == search_date,
+        Shift.employee_id.in_([e.id for e in employees])
+    ).all()
     shift_map = {s.employee_id: s.shift_type for s in shifts}
 
-    # Filter by shift type if provided
     if shift_type and shift_type != '':
         employees = [e for e in employees if shift_map.get(e.id) == shift_type]
 
     return jsonify({
         'mode': 'filtered',
         'count': len(employees),
-        'results': [{'name': e.name, 'shift': shift_map.get(e.id, 'N/A')} for e in employees]
+        'results': [
+            {'name': e.name, 'shift': shift_map.get(e.id, 'N/A')}
+            for e in employees
+            if shift_map.get(e.id) or not (shift_type and shift_type != '')
+        ]
     })
 
 @app.route('/team_details_view')

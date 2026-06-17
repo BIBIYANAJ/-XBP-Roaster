@@ -1501,28 +1501,113 @@
         if (selectedDates.size === 0) {
             document.getElementById('search-results').style.display = 'none'; return;
         }
-        const dates = [...selectedDates].sort().join(',');
+        const dates = [...selectedDates].sort();
         const team  = document.getElementById('s-team').value;
         const shift = document.getElementById('s-shift').value;
-        const p = new URLSearchParams({dates});
-        if (team)  p.set('team_id', team);
-        if (shift) p.set('shift_type', shift);
+        const box   = document.getElementById('search-results');
+        box.style.display = 'block';
+        box.innerHTML = '<span style="color:#8c959f;font-size:0.85em;">Searching…</span>';
 
-        fetch('/api/roster_search?' + p)
-            .then(r => r.json())
-            .then(data => {
-                const box = document.getElementById('search-results');
-                box.style.display = 'block';
-                if (data.error) { box.innerHTML = `<span style="color:#f85149">${data.error}</span>`; return; }
-                
-                let html = `<strong style="color:#f0f6fc">${data.count} member(s) found:</strong><br><br>`;
-                html += data.results.map(res => 
-                    `<span style="display:inline-block;background:#f6f8fa;border:1px solid #d0d7de;border-radius:12px;padding:3px 10px;margin:3px;font-size:0.9em;color:#1f2328">
-                        👤 ${res.name} <b style="color:#0969da">(${res.shift})</b>
-                    </span>`
-                ).join('');
-                box.innerHTML = html;
+        // Fetch each date in parallel
+        const fetches = dates.map(d => {
+            const p = new URLSearchParams({ dates: d });
+            if (team)  p.set('team_id', team);
+            if (shift) p.set('shift_type', shift);
+            return fetch('/api/roster_search?' + p)
+                .then(r => r.json())
+                .then(data => ({ date: d, data }));
+        });
+
+        Promise.all(fetches).then(results => {
+            // Merge: { empName -> [{date, shift}] }
+            const empMap = {};
+            results.forEach(({ date, data }) => {
+                if (data.error || !data.results) return;
+                data.results.forEach(res => {
+                    if (!empMap[res.name]) empMap[res.name] = [];
+                    empMap[res.name].push({ date, shift: res.shift });
+                });
             });
+
+            const names = Object.keys(empMap);
+            if (names.length === 0) {
+                box.innerHTML = '<span style="color:#8c959f;font-size:0.85em;">No employees found for selected criteria.</span>';
+                return;
+            }
+
+            const SHIFT_COLORS = {
+                M: '#d4a72c', A: '#d15704', N: '#1f6feb',
+                L: '#cf222e', O: '#1a7f37', G: '#8250df'
+            };
+
+            const isSingleDate = dates.length === 1;
+
+            let html = `<div style="margin-bottom:10px;font-size:0.82em;color:#656d76;font-weight:600;">
+                ${names.length} member(s) found across ${dates.length} date(s)
+            </div>`;
+
+            if (isSingleDate) {
+                // Single date: compact pill view (original style)
+                html += `<div style="display:flex;flex-wrap:wrap;gap:8px;">`;
+                names.forEach(name => {
+                    const entry = empMap[name][0];
+                    const color = SHIFT_COLORS[entry.shift] || '#8c959f';
+                    html += `<span style="display:inline-flex;align-items:center;gap:6px;
+                        background:#f6f8fa;border:1px solid #d0d7de;border-radius:20px;
+                        padding:5px 12px;font-size:0.85em;color:#1f2328;">
+                        👤 ${name}
+                        <span style="background:${color};color:#fff;border-radius:4px;
+                            padding:1px 8px;font-weight:700;font-size:0.88em;">${entry.shift}</span>
+                    </span>`;
+                });
+                html += `</div>`;
+            } else {
+                // Multiple dates: table view per employee
+                html += `<div style="display:flex;flex-direction:column;gap:10px;">`;
+                names.forEach(name => {
+                    const entries = empMap[name];
+                    html += `
+                    <div style="background:#fff;border:1px solid #d0d7de;border-radius:10px;overflow:hidden;">
+                        <div style="background:#f6f8fa;border-bottom:1px solid #d0d7de;
+                            padding:8px 14px;font-weight:700;font-size:0.85em;color:#1f2328;
+                            display:flex;align-items:center;gap:7px;">
+                            👤 ${name}
+                        </div>
+                        <div style="display:flex;flex-wrap:wrap;gap:0;">`;
+
+                    entries.forEach(({ date, shift }, idx) => {
+                        const color = SHIFT_COLORS[shift] || '#8c959f';
+                        const [y, m, d] = date.split('-');
+                        const dateObj = new Date(date);
+                        const dayName = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dateObj.getDay()];
+                        html += `
+                        <div style="display:flex;flex-direction:column;align-items:center;
+                            padding:10px 14px;border-right:1px solid #eaeef2;min-width:70px;
+                            ${idx === entries.length - 1 ? 'border-right:none;' : ''}">
+                            <span style="font-size:0.7em;color:#8c959f;font-weight:600;
+                                text-transform:uppercase;letter-spacing:0.4px;margin-bottom:3px;">
+                                ${dayName}
+                            </span>
+                            <span style="font-size:0.82em;color:#656d76;margin-bottom:6px;">
+                                ${d}-${m}-${y}
+                            </span>
+                            <span style="background:${color};color:#fff;border-radius:6px;
+                                padding:3px 12px;font-weight:800;font-size:0.9em;
+                                min-width:32px;text-align:center;">
+                                ${shift}
+                            </span>
+                        </div>`;
+                    });
+
+                    html += `</div></div>`;
+                });
+                html += `</div>`;
+            }
+
+            box.innerHTML = html;
+        }).catch(() => {
+            box.innerHTML = '<span style="color:#cf222e;font-size:0.85em;">Error fetching results.</span>';
+        });
     }
     /* ── Forms ──────────────────────────────────────────────── */
     document.addEventListener('DOMContentLoaded', () => {
