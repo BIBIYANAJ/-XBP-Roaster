@@ -494,7 +494,7 @@
         const isAdmin = {{ 'true' if is_admin else 'false' }};
         
         let selectedDates = new Set();
-        let history = [new Set()]; 
+        let history = [{ selections: new Set(), shifts: {} }]; // Store both selection AND shift state
         let historyIndex = 0;
         let isMouseDown = false;
         let isSelecting = true;
@@ -525,12 +525,22 @@
 
         // ── Undo/Redo ──────────────────────────────────────────────
         function saveState() {
-            const current = new Set(selectedDates);
+            // Get current shifts from the DOM (or your schedule_data object)
+            const currentShifts = {};
+            document.querySelectorAll('.calendar-day').forEach(el => {
+                // Find the shift label (the text inside the cell)
+                const label = el.querySelector('.cell-shift-label');
+                if(label) currentShifts[el.dataset.date] = label.textContent;
+            });
+
+            const currentSelection = new Set(selectedDates);
             const last = history[historyIndex];
-            if (JSON.stringify([...current].sort()) === JSON.stringify([...last].sort())) return;
+
+            if (JSON.stringify([...currentSelection].sort()) === JSON.stringify([...last.selections].sort()) && 
+                JSON.stringify(currentShifts) === JSON.stringify(last.shifts)) return;
 
             history = history.slice(0, historyIndex + 1);
-            history.push(current);
+            history.push({ selections: currentSelection, shifts: currentShifts });
             historyIndex++;
         }
 
@@ -548,23 +558,24 @@
             }
         }
 
-        function applyHistoryState(stateSet) {
-            // 1. Clear current UI selections
-            selectedDates = new Set(stateSet);
-            
-            // 2. Refresh the visual state of all calendar cells
+        function applyHistoryState(state) {
+            selectedDates = new Set(state.selections);
+            // Restore selection UI
             document.querySelectorAll('.calendar-day').forEach(el => {
-                const date = el.dataset.date;
-                if (date) {
-                    if (selectedDates.has(date)) {
-                        el.classList.add('selected');
-                    } else {
-                        el.classList.remove('selected');
-                    }
+                const d = el.dataset.date;
+                el.classList.toggle('selected', selectedDates.has(d));
+                
+                // Restore shift UI
+                const shift = state.shifts[d];
+                const labelDiv = el.querySelector('.cell-shift-label');
+                if (shift) {
+                    if (labelDiv) labelDiv.textContent = shift;
+                    el.className = el.className.replace(/cell-shift-[A-Z]/g, '') + ' cell-shift-' + shift;
+                } else {
+                    if (labelDiv) labelDiv.remove();
+                    el.className = el.className.replace(/cell-shift-[A-Z]/g, '');
                 }
             });
-
-            // 3. Update count label
             updateSelCount();
         }
 
@@ -612,6 +623,7 @@
             .then(data => {
                 showNotification(data.message, data.status === 'success' ? 'success' : 'warning');
                 if (data.status === 'success') {
+                    saveState();
                     setTimeout(() => window.location.reload(), 800);
                 }
             })
