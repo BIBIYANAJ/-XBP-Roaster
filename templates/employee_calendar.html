@@ -437,13 +437,10 @@
 
                 {% for date in calendar_dates %}
                     {% set shift_type = schedule_data.get(date.strftime('%Y-%m-%d'), '') %}
-                    <div class="calendar-day {% if date.month != current_date.month %}other-month{% endif %} {% if shift_type %}cell-shift-{{ shift_type }}{% endif %}"
+                    <div class="calendar-day {% if date.month != current_date.month %}other-month{% endif %} {% if shift_type %}cell-shift-{{ shift_type }}{% endif %} {% if is_admin and date.month == current_date.month %}selectable{% endif %}"
                         data-date="{{ date.strftime('%Y-%m-%d') }}"
                         onmousedown="startSelection(this)" 
-                        onmouseover="handleMouseOver(this)"
-                        {% if is_admin and date.month == current_date.month %}
-                            class="selectable"
-                        {% endif %}>
+                        onmouseover="handleMouseOver(this)">
                         <div class="day-number">{{ date.day }}</div>
                         {% if shift_type %}
                             <div class="cell-shift-label">{{ shift_type }}</div>
@@ -552,11 +549,22 @@
         }
 
         function applyHistoryState(stateSet) {
+            // 1. Clear current UI selections
             selectedDates = new Set(stateSet);
+            
+            // 2. Refresh the visual state of all calendar cells
             document.querySelectorAll('.calendar-day').forEach(el => {
-                if (selectedDates.has(el.dataset.date)) el.classList.add('selected');
-                else el.classList.remove('selected');
+                const date = el.dataset.date;
+                if (date) {
+                    if (selectedDates.has(date)) {
+                        el.classList.add('selected');
+                    } else {
+                        el.classList.remove('selected');
+                    }
+                }
             });
+
+            // 3. Update count label
             updateSelCount();
         }
 
@@ -572,7 +580,6 @@
                 el.classList.add('selected');
             }
             updateSelCount();
-            saveState(); // ADD THIS LINE
         }
 
         function updateSelCount() {
@@ -797,7 +804,6 @@
         }
 
         function toggleApplyForm(tplId) {
-            // Close all others first
             templates.forEach(t => {
                 if (t.id !== tplId) {
                     const f = document.getElementById(`tpl-apply-${t.id}`);
@@ -807,7 +813,6 @@
             const form = document.getElementById(`tpl-apply-${tplId}`);
             form.classList.toggle('open');
             if (form.classList.contains('open')) {
-                // Pre-fill today → end of current month
                 const today = new Date();
                 const y = today.getFullYear(), m = today.getMonth();
                 const lastDay = new Date(y, m + 1, 0).getDate();
@@ -863,51 +868,6 @@
                 }
             });
         });
-        let history = [new Set()]; 
-        let historyIndex = 0;
-
-        function saveState() {
-            const current = new Set(selectedDates);
-            const last = history[historyIndex];
-            if (JSON.stringify([...current].sort()) === JSON.stringify([...last].sort())) return;
-            history = history.slice(0, historyIndex + 1);
-            history.push(current);
-            historyIndex++;
-        }
-
-        function undo() {
-            if (historyIndex > 0) {
-                historyIndex--;
-                applyHistoryState(history[historyIndex]);
-            }
-        }
-
-        function redo() {
-            if (historyIndex < history.length - 1) {
-                historyIndex++;
-                applyHistoryState(history[historyIndex]);
-            }
-        }
-
-        function applyHistoryState(stateSet) {
-            // 1. Clear current UI selections
-            selectedDates = new Set(stateSet);
-            
-            // 2. Refresh the visual state of all calendar cells
-            document.querySelectorAll('.calendar-day').forEach(el => {
-                const date = el.dataset.date;
-                if (date) {
-                    if (selectedDates.has(date)) {
-                        el.classList.add('selected');
-                    } else {
-                        el.classList.remove('selected');
-                    }
-                }
-            });
-
-            // 3. Update count label
-            updateSelCount();
-        }
         function saveTemplate() {
             const name = document.getElementById('tpl-name').value.trim();
             if (!name) { showNotification('Enter a template name.', 'warning'); return; }
