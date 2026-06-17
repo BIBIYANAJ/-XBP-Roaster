@@ -219,6 +219,9 @@ main {
     background-color: #ffffff;
     border-radius: 6px;
     transition: background-color 0.2s, border-color 0.2s;
+    user-select: none; /* Prevents text selection while dragging */
+    -webkit-user-select: none;
+    cursor: cell;
 }
 
 .calendar-day:hover {
@@ -835,4 +838,12 @@ main {
     transform: translateY(-1px);
     background: linear-gradient(135deg,#2da44e,#3fb950);
     box-shadow: 0 4px 12px rgba(26,127,55,0.25);
+}
+
+.selectable {
+    cursor: cell !important; /* Shows a 'crosshair' when hovering over selectable dates */
+}
+
+.cell-shift-label {
+    pointer-events: none; 
 }
