@@ -216,7 +216,7 @@ def generate_roster_image(employees, dates, schedule_data, title, team_name='', 
     font_datenum = load_font(28, bold=True)
     font_dayname = load_font(22)
     font_empname = load_font(28, bold=True)
-    font_cell    = load_font(32, bold=True)
+    font_cell    = load_font(28, bold=True)
     font_legend  = load_font(22)
 
     # ── Helper: centered text in a box ────────────────────────────
@@ -774,6 +774,11 @@ def update_employee_shift():
                     continue
             with db.session.no_autoflush:
                 existing = Shift.query.filter_by(employee_id=employee_id, date=date).first()
+            if shift_type == '':
+                if existing:
+                    db.session.delete(existing)
+                results.append({'date': date_str, 'status': 'success'})
+                continue
             if existing:
                 existing.shift_type = shift_type
             else:
@@ -812,6 +817,11 @@ def update_roster_shifts():
             date = datetime.datetime.strptime(date_str, '%Y-%m-%d').date()
             with db.session.no_autoflush:
                 existing = Shift.query.filter_by(employee_id=employee_id, date=date).first()
+            if shift_type == '':
+                if existing:
+                    db.session.delete(existing)
+                results.append({'cell': cell, 'status': 'success'})
+                continue
             if existing:
                 existing.shift_type = shift_type
             else:
