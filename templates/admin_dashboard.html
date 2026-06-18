@@ -615,6 +615,7 @@
         .p-day.p-sel { background: linear-gradient(135deg,#0969da,#388bfd); color: #fff; font-weight: 700; box-shadow: 0 2px 8px rgba(9,105,218,0.3); }
         .p-day.p-empty { cursor: default; }
         .p-day.p-empty:hover { background: transparent; }
+        .p-day.p-focus { outline: 3px solid #0969da; outline-offset: -2px; border-radius: 50%; position: relative; z-index: 1; }
         .picker-footer {
             display: flex;
             justify-content: space-between;
@@ -1409,11 +1410,15 @@
     /* ── Multi-date picker ──────────────────────────────────── */
     let selectedDates = new Set();
     let pickerYear, pickerMonth;
+    let pickerFocusDate  = null;
+    let pickerAnchorDate = null;
 
     function openDatePicker() {
         const t = new Date();
         pickerYear = t.getFullYear();
         pickerMonth = t.getMonth();
+        pickerFocusDate  = null;
+        pickerAnchorDate = null;
         renderPicker();
         document.getElementById('picker-overlay').classList.add('open');
     }
@@ -1452,9 +1457,11 @@
         for (let d = 1; d <= dim; d++) {
             const ds = `${pickerYear}-${String(pickerMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
             const c = document.createElement('div');
-            c.className = 'p-day' + (selectedDates.has(ds) ? ' p-sel' : '');
+            c.className = 'p-day'
+                + (selectedDates.has(ds) ? ' p-sel' : '')
+                + (ds === pickerFocusDate ? ' p-focus' : '');
             c.textContent = d; c.dataset.date = ds;
-            c.onclick = () => toggleDay(c);
+            c.onclick = () => { pickerAnchorDate = ds; pickerFocusDate = ds; toggleDay(c); };
             g.appendChild(c);
         }
         updateCount();
@@ -1475,6 +1482,68 @@
         document.querySelectorAll('#picker-grid .p-day').forEach(e => e.classList.remove('p-sel'));
         updateCount();
     }
+
+    function localDateStr(d) {
+        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    }
+
+    function setPickerFocus(dateStr) {
+        pickerFocusDate = dateStr;
+        if (dateStr) {
+            const [y, m] = dateStr.split('-').map(Number);
+            if (y !== pickerYear || m - 1 !== pickerMonth) { pickerYear = y; pickerMonth = m - 1; }
+        }
+        renderPicker();
+    }
+
+    function pickerSelectRange(fromDate, toDate) {
+        selectedDates.clear();
+        const [s, e] = [fromDate, toDate].sort();
+        const cur = new Date(s + 'T00:00:00');
+        const end = new Date(e + 'T00:00:00');
+        while (cur <= end) { selectedDates.add(localDateStr(cur)); cur.setDate(cur.getDate() + 1); }
+        renderPicker();
+        updateCount();
+    }
+
+    document.addEventListener('keydown', function(e) {
+        const overlay = document.getElementById('picker-overlay');
+        if (!overlay || !overlay.classList.contains('open')) return;
+        const ARROWS = ['ArrowRight','ArrowLeft','ArrowDown','ArrowUp'];
+        if (!ARROWS.includes(e.key) && e.key !== 'Escape' && e.key !== 'Enter' && e.key !== ' ') return;
+        e.preventDefault(); e.stopPropagation();
+
+        if (e.key === 'Escape') { closeDatePicker(); return; }
+
+        if (!pickerFocusDate) {
+            const first = document.querySelector('#picker-grid .p-day[data-date]');
+            if (!first) return;
+            pickerFocusDate = pickerAnchorDate = first.dataset.date;
+            renderPicker(); return;
+        }
+
+        if (e.key === 'Enter' || e.key === ' ') {
+            const el = document.querySelector(`#picker-grid [data-date="${pickerFocusDate}"]`);
+            if (el) { if (!e.shiftKey) pickerAnchorDate = pickerFocusDate; toggleDay(el); }
+            return;
+        }
+
+        const cur = new Date(pickerFocusDate + 'T00:00:00');
+        if (e.key === 'ArrowRight') cur.setDate(cur.getDate() + 1);
+        else if (e.key === 'ArrowLeft')  cur.setDate(cur.getDate() - 1);
+        else if (e.key === 'ArrowDown')  cur.setDate(cur.getDate() + 7);
+        else if (e.key === 'ArrowUp')    cur.setDate(cur.getDate() - 7);
+        const nextDate = localDateStr(cur);
+
+        if (e.shiftKey) {
+            pickerSelectRange(pickerAnchorDate, nextDate);
+            pickerFocusDate = nextDate;
+            setPickerFocus(nextDate);
+        } else {
+            pickerAnchorDate = nextDate;
+            setPickerFocus(nextDate);
+        }
+    });
     function renderChips() {
         const chips = document.getElementById('date-chips');
         const btn   = document.getElementById('date-btn-label');

@@ -70,6 +70,7 @@
         .picker-day.p-selected { background: #1a237e; color: #fff; }
         .picker-day.p-empty { cursor: default; }
         .picker-day.p-other { color: #ccc; cursor: default; }
+        .picker-day.p-focus { outline: 3px solid #0969da; outline-offset: -2px; border-radius: 50%; position: relative; z-index: 1; }
         .picker-footer {
             margin-top: 14px;
             display: flex;
@@ -305,6 +306,14 @@
         }
         .tpl-save-btn:hover { box-shadow: 0 4px 14px rgba(130,80,223,0.35); }
         .tpl-empty { color: #8c959f; font-size: 0.85em; text-align: center; padding: 20px 0; }
+
+        /* Excel-style keyboard focus ring */
+        .calendar-day.kb-focus {
+            outline: 3px solid #0969da;
+            outline-offset: -3px;
+            position: relative;
+            z-index: 2;
+        }
     </style>
 </head>
 <body>
@@ -442,9 +451,8 @@
                     {% set shift_type = schedule_data.get(date.strftime('%Y-%m-%d'), '') %}
                     <div class="calendar-day {% if date.month != current_date.month %}other-month{% endif %} {% if shift_type %}cell-shift-{{ shift_type }}{% endif %} {% if is_admin and date.month == current_date.month %}selectable{% endif %}"
                         data-date="{{ date.strftime('%Y-%m-%d') }}"
-                        onmousedown="startSelection(this)" 
-                        onmouseover="handleMouseOver(this)"
-                        onclick="toggleDate(this)">
+                        onmousedown="startSelection(this, event)"
+                        onmouseover="handleMouseOver(this)">
                         <div class="day-number">{{ date.day }}</div>
                         {% if shift_type %}
                             <div class="cell-shift-label">{{ shift_type }}</div>
@@ -500,17 +508,68 @@
         const pageMonth = {{ current_date.month - 1 }};
         
         let selectedDates = new Set();
-        let history = [{ selections: new Set(), shifts: {} }]; 
-        let historyIndex = 0;
+        let history = [];
+        let historyIndex = -1;
         let isMouseDown = false;
         let isSelecting = true;
+        let anchorDate = null;   // for shift+click / shift+arrow range
+        let focusDate  = null;   // current keyboard-focused cell
+
+        function captureShiftState() {
+            const shifts = {};
+            document.querySelectorAll('.calendar-day[data-date]').forEach(el => {
+                const label = el.querySelector('.cell-shift-label');
+                if (label) shifts[el.dataset.date] = label.textContent.trim();
+            });
+            return shifts;
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            history = [{ shifts: captureShiftState() }];
+            historyIndex = 0;
+        });
+
+        // ── Helpers ────────────────────────────────────────────
+        function getSelectableCells() {
+            return Array.from(document.querySelectorAll('.calendar-day.selectable[data-date]'));
+        }
+        function getCellByDate(d) {
+            return document.querySelector(`.calendar-day[data-date="${d}"]`);
+        }
+        function setKbFocus(dateStr) {
+            document.querySelectorAll('.calendar-day.kb-focus').forEach(el => el.classList.remove('kb-focus'));
+            focusDate = dateStr;
+            if (!dateStr) return;
+            const el = getCellByDate(dateStr);
+            if (el) { el.classList.add('kb-focus'); el.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
+        }
+        function selectRange(fromDate, toDate) {
+            const cells = getSelectableCells();
+            const dates = cells.map(c => c.dataset.date);
+            const fi = dates.indexOf(fromDate), ti = dates.indexOf(toDate);
+            if (fi === -1 || ti === -1) return;
+            const s = Math.min(fi, ti), e = Math.max(fi, ti);
+            selectedDates.clear();
+            document.querySelectorAll('.calendar-day.selected').forEach(el => el.classList.remove('selected'));
+            for (let i = s; i <= e; i++) { selectedDates.add(dates[i]); cells[i].classList.add('selected'); }
+            updateSelCount();
+        }
 
         // ── Selection Logic ────────────────────────────────────
-        function startSelection(el) {
+        function startSelection(el, event) {
+            if (!el.classList.contains('selectable')) return;
             isMouseDown = true;
             const d = el.dataset.date;
-            isSelecting = !selectedDates.has(d);
-            toggleDate(el);
+            if (event && event.shiftKey && anchorDate) {
+                isSelecting = true;
+                selectRange(anchorDate, d);
+                setKbFocus(d);
+            } else {
+                isSelecting = !selectedDates.has(d);
+                anchorDate = d;
+                toggleDate(el);
+                setKbFocus(d);
+            }
         }
 
         function handleMouseOver(el) {
@@ -522,62 +581,153 @@
             }
         }
 
-        document.addEventListener('mouseup', () => {
-            if (isMouseDown) {
-                isMouseDown = false;
-                saveState();
+        document.addEventListener('mouseup', () => { isMouseDown = false; });
+
+        // ── Keyboard navigation (Excel-style) ──────────────────
+        document.addEventListener('keydown', function(e) {
+            if (!isAdmin) return;
+            if (document.getElementById('picker-overlay').classList.contains('open')) return;
+
+            // Shift hotkeys: M A N L O G apply to selection
+            if (!e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && selectedDates.size > 0) {
+                const shiftMap = { m:'M', a:'A', n:'N', l:'L', o:'O', g:'G' };
+                const key = shiftMap[e.key.toLowerCase()];
+                if (key) { applyShift(key); return; }
+            }
+
+            const ARROW = ['ArrowRight','ArrowLeft','ArrowDown','ArrowUp'];
+            if (!ARROW.includes(e.key) && e.key !== 'Escape' && e.key !== 'Enter' && e.key !== ' ') return;
+
+            const cells = getSelectableCells();
+            if (!cells.length) return;
+
+            // Escape clears everything
+            if (e.key === 'Escape') { clearSelection(); setKbFocus(null); anchorDate = null; e.preventDefault(); return; }
+
+            // If no focus yet, start at first cell
+            if (!focusDate) {
+                anchorDate = cells[0].dataset.date;
+                setKbFocus(anchorDate);
+                if (!selectedDates.has(anchorDate)) { isSelecting = true; toggleDate(cells[0]); }
+                e.preventDefault();
+                return;
+            }
+
+            const currentIdx = cells.findIndex(c => c.dataset.date === focusDate);
+            if (currentIdx === -1) return;
+
+            // Enter / Space toggles selection on focused cell
+            if (e.key === 'Enter' || e.key === ' ') {
+                const el = getCellByDate(focusDate);
+                if (el) { isSelecting = !selectedDates.has(focusDate); toggleDate(el); }
+                if (!e.shiftKey) anchorDate = focusDate;
+                e.preventDefault();
+                return;
+            }
+
+            let nextIdx = currentIdx;
+            if (e.key === 'ArrowRight') nextIdx = currentIdx + 1;
+            else if (e.key === 'ArrowLeft')  nextIdx = currentIdx - 1;
+            else if (e.key === 'ArrowDown')  nextIdx = currentIdx + 7;
+            else if (e.key === 'ArrowUp')    nextIdx = currentIdx - 7;
+
+            if (nextIdx < 0 || nextIdx >= cells.length) { e.preventDefault(); return; }
+
+            e.preventDefault();
+            const nextDate = cells[nextIdx].dataset.date;
+
+            if (e.shiftKey) {
+                // Extend range from anchor
+                selectRange(anchorDate, nextDate);
+                setKbFocus(nextDate);
+            } else {
+                // Move cursor: deselect all, select only new cell
+                clearSelection();
+                anchorDate = nextDate;
+                isSelecting = true;
+                toggleDate(cells[nextIdx]);
+                setKbFocus(nextDate);
             }
         });
 
         // ── Undo/Redo Logic ──────────────────────────────────────────────
         function saveState() {
-            const currentShifts = {};
-            document.querySelectorAll('.calendar-day').forEach(el => {
-                const label = el.querySelector('.cell-shift-label');
-                if(label) currentShifts[el.dataset.date] = label.textContent;
-            });
-
-            const currentSelection = new Set(selectedDates);
+            const currentShifts = captureShiftState();
             const last = history[historyIndex];
-
-            if (JSON.stringify([...currentSelection].sort()) === JSON.stringify([...last.selections].sort()) && 
-                JSON.stringify(currentShifts) === JSON.stringify(last.shifts)) return;
-
+            if (JSON.stringify(currentShifts) === JSON.stringify(last ? last.shifts : null)) return;
             history = history.slice(0, historyIndex + 1);
-            history.push({ selections: currentSelection, shifts: currentShifts });
+            history.push({ shifts: currentShifts });
             historyIndex++;
         }
 
         function undo() {
             if (historyIndex > 0) {
+                const fromShifts = captureShiftState();
                 historyIndex--;
-                applyHistoryState(history[historyIndex]);
+                applyHistoryState(history[historyIndex], fromShifts);
+            } else {
+                showNotification('Nothing to undo.', 'warning');
             }
         }
 
         function redo() {
             if (historyIndex < history.length - 1) {
+                const fromShifts = captureShiftState();
                 historyIndex++;
-                applyHistoryState(history[historyIndex]);
+                applyHistoryState(history[historyIndex], fromShifts);
+            } else {
+                showNotification('Nothing to redo.', 'warning');
             }
         }
 
-        function applyHistoryState(state) {
-            selectedDates = new Set(state.selections);
-            document.querySelectorAll('.calendar-day').forEach(el => {
+        function applyHistoryState(state, fromShifts) {
+            const targetShifts = state.shifts || {};
+
+            // Update DOM
+            document.querySelectorAll('.calendar-day[data-date]').forEach(el => {
                 const d = el.dataset.date;
-                el.classList.toggle('selected', selectedDates.has(d));
-                const shift = state.shifts[d];
+                const shift = targetShifts[d];
                 const labelDiv = el.querySelector('.cell-shift-label');
                 if (shift) {
-                    if (labelDiv) labelDiv.textContent = shift;
+                    if (labelDiv) {
+                        labelDiv.textContent = shift;
+                    } else {
+                        const newLabel = document.createElement('div');
+                        newLabel.className = 'cell-shift-label';
+                        newLabel.textContent = shift;
+                        el.appendChild(newLabel);
+                    }
                     el.className = el.className.replace(/cell-shift-[A-Z]/g, '') + ' cell-shift-' + shift;
                 } else {
                     if (labelDiv) labelDiv.remove();
                     el.className = el.className.replace(/cell-shift-[A-Z]/g, '');
                 }
             });
-            updateSelCount();
+
+            // Sync to server: find what changed
+            const byShift = {};
+            const allDates = new Set([...Object.keys(fromShifts || {}), ...Object.keys(targetShifts)]);
+            allDates.forEach(d => {
+                const prev = (fromShifts || {})[d] || '';
+                const target = targetShifts[d] || '';
+                if (prev !== target) {
+                    if (!byShift[target]) byShift[target] = [];
+                    byShift[target].push(d);
+                }
+            });
+
+            if (Object.keys(byShift).length > 0) {
+                const promises = Object.entries(byShift).map(([shiftType, dates]) =>
+                    fetch('/api/update_employee_shift', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({employee_id: employeeId, dates, shift_type: shiftType})
+                    }).then(r => r.json())
+                );
+                Promise.all(promises)
+                    .then(() => showNotification('Changes reverted.', 'success'))
+                    .catch(() => showNotification('Error syncing to server.', 'error'));
+            }
         }
 
         function toggleDate(el) {
@@ -604,27 +754,44 @@
             selectedDates.clear();
             document.querySelectorAll('.calendar-day.selected').forEach(el => el.classList.remove('selected'));
             updateSelCount();
-            saveState(); // ADDED
         }
 
         function applyShift(shiftType) {
             if (!isAdmin) return;
             if (selectedDates.size === 0) return;
             const dates = Array.from(selectedDates);
-            fetch('{{ url_for("update_employee_shift") }}', {
+            fetch('/api/update_employee_shift', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({employee_id: employeeId, dates, shift_type: shiftType})
             })
             .then(r => r.json())
             .then(data => {
-                if (data.status === 'success') {
-                    saveState(); // ADDED
-                    window.location.reload();
+                if (data.status === 'success' || data.status === 'warning') {
+                    // Update DOM directly — no page reload so history is preserved
+                    dates.forEach(dateStr => {
+                        const el = document.querySelector(`.calendar-day[data-date="${dateStr}"]`);
+                        if (!el) return;
+                        el.className = el.className.replace(/cell-shift-[A-Z]/g, '');
+                        el.classList.add('cell-shift-' + shiftType);
+                        let labelDiv = el.querySelector('.cell-shift-label');
+                        if (!labelDiv) {
+                            labelDiv = document.createElement('div');
+                            labelDiv.className = 'cell-shift-label';
+                            el.appendChild(labelDiv);
+                        }
+                        labelDiv.textContent = shiftType;
+                    });
+                    selectedDates.clear();
+                    document.querySelectorAll('.calendar-day.selected').forEach(el => el.classList.remove('selected'));
+                    updateSelCount();
+                    saveState();
+                    showNotification(data.message, data.status);
                 } else {
-                    alert(data.message);
+                    showNotification(data.message, 'error');
                 }
-            });
+            })
+            .catch(() => showNotification('Error saving shifts.', 'error'));
         }
 
         function jumpToDate(dateStr) {
@@ -637,10 +804,14 @@
         // ── Multi-date picker ──────────────────────────────────────
         let pickerYear  = pageYear;
         let pickerMonth = pageMonth;
+        let pickerFocusDate  = null;
+        let pickerAnchorDate = null;
 
         function openPicker() {
             pickerYear  = pageYear;
             pickerMonth = pageMonth;
+            pickerFocusDate  = null;
+            pickerAnchorDate = null;
             renderPicker();
             document.getElementById('picker-overlay').classList.add('open');
         }
@@ -656,7 +827,6 @@
                 }
             });
             updateSelCount();
-            saveState();
         }
 
         function overlayClick(e) {
@@ -704,17 +874,48 @@
             for (let d = 1; d <= daysInMonth; d++) {
                 const dateStr = `${pickerYear}-${String(pickerMonth + 1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
                 const cell = document.createElement('div');
-                cell.className = 'picker-day' + (selectedDates.has(dateStr) ? ' p-selected' : '');
+                const isFocus = dateStr === pickerFocusDate;
+                cell.className = 'picker-day'
+                    + (selectedDates.has(dateStr) ? ' p-selected' : '')
+                    + (isFocus ? ' p-focus' : '');
                 cell.textContent = d;
                 cell.dataset.date = dateStr;
-                cell.onclick = () => togglePickerDay(cell);
+                cell.onclick = () => togglePickerDay(cell, true);
                 grid.appendChild(cell);
             }
 
             updatePickerCount();
         }
 
-        function togglePickerDay(cell) {
+        function localPickerDateStr(d) {
+            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        }
+
+        function setPickerFocus(dateStr) {
+            pickerFocusDate = dateStr;
+            if (dateStr) {
+                const [y, m] = dateStr.split('-').map(Number);
+                if (y !== pickerYear || m - 1 !== pickerMonth) {
+                    pickerYear = y; pickerMonth = m - 1;
+                }
+            }
+            renderPicker();
+        }
+
+        function pickerSelectRange(fromDate, toDate) {
+            const [s, e] = [fromDate, toDate].sort();
+            selectedDates.clear();
+            const cur = new Date(s + 'T00:00:00');
+            const end = new Date(e + 'T00:00:00');
+            while (cur <= end) {
+                selectedDates.add(localPickerDateStr(cur));
+                cur.setDate(cur.getDate() + 1);
+            }
+            renderPicker();
+            updatePickerCount();
+        }
+
+        function togglePickerDay(cell, fromClick) {
             const d = cell.dataset.date;
             if (selectedDates.has(d)) {
                 selectedDates.delete(d);
@@ -723,8 +924,55 @@
                 selectedDates.add(d);
                 cell.classList.add('p-selected');
             }
+            if (fromClick) { pickerAnchorDate = d; pickerFocusDate = d; }
             updatePickerCount();
         }
+
+        document.addEventListener('keydown', function(e) {
+            const overlay = document.getElementById('picker-overlay');
+            if (!overlay.classList.contains('open')) return;
+
+            const ARROWS = ['ArrowRight','ArrowLeft','ArrowDown','ArrowUp'];
+            if (!ARROWS.includes(e.key) && e.key !== 'Escape' && e.key !== 'Enter' && e.key !== ' ') return;
+            e.preventDefault();
+            e.stopPropagation();
+
+            if (e.key === 'Escape') { closePicker(); return; }
+
+            // If no focus yet, start at today or first selected or day 1
+            if (!pickerFocusDate) {
+                const first = document.querySelector('#picker-grid .picker-day[data-date]');
+                if (!first) return;
+                pickerFocusDate  = first.dataset.date;
+                pickerAnchorDate = pickerFocusDate;
+                renderPicker();
+                return;
+            }
+
+            if (e.key === 'Enter' || e.key === ' ') {
+                const el = document.querySelector(`#picker-grid [data-date="${pickerFocusDate}"]`);
+                if (el) togglePickerDay(el, !e.shiftKey);
+                return;
+            }
+
+            // Calculate next date
+            const cur = new Date(pickerFocusDate + 'T00:00:00');
+            if (e.key === 'ArrowRight') cur.setDate(cur.getDate() + 1);
+            else if (e.key === 'ArrowLeft')  cur.setDate(cur.getDate() - 1);
+            else if (e.key === 'ArrowDown')  cur.setDate(cur.getDate() + 7);
+            else if (e.key === 'ArrowUp')    cur.setDate(cur.getDate() - 7);
+
+            const nextDate = localPickerDateStr(cur);
+
+            if (e.shiftKey) {
+                pickerSelectRange(pickerAnchorDate, nextDate);
+                pickerFocusDate = nextDate;
+                setPickerFocus(nextDate);
+            } else {
+                pickerAnchorDate = nextDate;
+                setPickerFocus(nextDate);
+            }
+        });
 
         function updatePickerCount() {
             const n = selectedDates.size;

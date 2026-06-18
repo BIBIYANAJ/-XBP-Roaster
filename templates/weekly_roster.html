@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ team.name }} - Weekly Roster</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .mini-cell.kb-focus { outline: 3px solid #0969da; outline-offset: -2px; position: relative; z-index: 2; }
+    </style>
 </head>
 <body>
     <header>
@@ -125,7 +128,92 @@
         const teamId = {{ team.id }};
         let selectedCells = new Map();
         let lastClickedCell = null;
+        let focusedCell = null;
 
+        // ── Shift-state history (tracks actual assignments, not just selection) ──
+        let shiftHistory = [];
+        let shiftHistoryIndex = -1;
+
+        function captureShiftState() {
+            const state = {};
+            document.querySelectorAll('.mini-cell[data-employee-id][data-date]').forEach(el => {
+                const key = `${el.dataset.employeeId}|${el.dataset.date}`;
+                state[key] = ['M','A','N','L','O','G'].find(s => el.classList.contains('shift-' + s)) || '';
+            });
+            return state;
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            shiftHistory = [captureShiftState()];
+            shiftHistoryIndex = 0;
+        });
+
+        function saveShiftState() {
+            const current = captureShiftState();
+            const last = shiftHistory[shiftHistoryIndex];
+            if (JSON.stringify(current) === JSON.stringify(last)) return;
+            shiftHistory = shiftHistory.slice(0, shiftHistoryIndex + 1);
+            shiftHistory.push(current);
+            shiftHistoryIndex++;
+        }
+
+        function undo() {
+            if (shiftHistoryIndex <= 0) {
+                showNotification('Nothing to undo.', 'warning');
+                return;
+            }
+            const fromState = captureShiftState();
+            shiftHistoryIndex--;
+            applyShiftSnapshot(shiftHistory[shiftHistoryIndex], fromState, 'Undone.');
+        }
+
+        function redo() {
+            if (shiftHistoryIndex >= shiftHistory.length - 1) {
+                showNotification('Nothing to redo.', 'warning');
+                return;
+            }
+            const fromState = captureShiftState();
+            shiftHistoryIndex++;
+            applyShiftSnapshot(shiftHistory[shiftHistoryIndex], fromState, 'Redone.');
+        }
+
+        function applyShiftSnapshot(targetState, fromState, msg) {
+            const byShift = {};
+            for (const [key, targetShift] of Object.entries(targetState)) {
+                if ((fromState[key] || '') === targetShift) continue;
+                if (!byShift[targetShift]) byShift[targetShift] = [];
+                const [empId, date] = key.split('|');
+                byShift[targetShift].push({employee_id: parseInt(empId), date});
+            }
+            if (Object.keys(byShift).length === 0) return;
+
+            const promises = Object.entries(byShift).map(([shiftType, cells]) =>
+                fetch('/api/update_roster_shifts', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({cells, shift_type: shiftType})
+                }).then(r => r.json())
+            );
+
+            Promise.all(promises)
+                .then(() => {
+                    for (const [key, targetShift] of Object.entries(targetState)) {
+                        if ((fromState[key] || '') === targetShift) continue;
+                        const [empId, date] = key.split('|');
+                        const el = document.querySelector(`[data-employee-id="${empId}"][data-date="${date}"]`);
+                        if (!el) continue;
+                        ['M','A','N','L','O','G'].forEach(s => el.classList.remove('shift-' + s));
+                        if (targetShift) {
+                            el.classList.add('shift-' + targetShift);
+                            el.textContent = targetShift;
+                        } else {
+                            el.textContent = '';
+                        }
+                    }
+                    showNotification(msg, 'success');
+                })
+                .catch(() => showNotification('Error reverting changes.', 'error'));
+        }
 
         function toggleCell(el, event) {
             const key = `${el.dataset.employeeId}|${el.dataset.date}`;
@@ -161,7 +249,6 @@
             }
             document.getElementById('sel-count').textContent =
                 selectedCells.size > 0 ? `${selectedCells.size} cell(s) selected` : '';
-            saveState();
         }
 
         function clearRosterSelection() {
@@ -169,6 +256,88 @@
             selectedCells.clear();
             document.getElementById('sel-count').textContent = '';
         }
+
+        // ── Excel-style keyboard navigation ────────────────────
+        function getRosterCells() {
+            return Array.from(document.querySelectorAll('.mini-cell[data-employee-id][data-date]'));
+        }
+        function getNumCols() {
+            const cells = getRosterCells();
+            if (!cells.length) return 0;
+            const id = cells[0].dataset.employeeId;
+            return cells.filter(c => c.dataset.employeeId === id).length;
+        }
+        function setRosterFocus(el) {
+            document.querySelectorAll('.mini-cell.kb-focus').forEach(c => c.classList.remove('kb-focus'));
+            focusedCell = el;
+            if (el) { el.classList.add('kb-focus'); el.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
+        }
+        function rosterSelectRange(fromEl, toEl) {
+            const cells = getRosterCells();
+            const fi = cells.indexOf(fromEl), ti = cells.indexOf(toEl);
+            if (fi === -1 || ti === -1) return;
+            const s = Math.min(fi, ti), e = Math.max(fi, ti);
+            selectedCells.clear();
+            document.querySelectorAll('.mini-cell.cell-selected').forEach(c => c.classList.remove('cell-selected'));
+            for (let i = s; i <= e; i++) {
+                const c = cells[i];
+                const k = `${c.dataset.employeeId}|${c.dataset.date}`;
+                selectedCells.set(k, {employee_id: parseInt(c.dataset.employeeId), date: c.dataset.date, el: c});
+                c.classList.add('cell-selected');
+            }
+            document.getElementById('sel-count').textContent =
+                selectedCells.size > 0 ? `${selectedCells.size} cell(s) selected` : '';
+        }
+
+        document.addEventListener('keydown', function(e) {
+            const ARROWS = ['ArrowRight','ArrowLeft','ArrowDown','ArrowUp'];
+            if (!ARROWS.includes(e.key) && e.key !== 'Escape' && e.key !== 'Enter' && e.key !== ' ') {
+                if (!e.shiftKey && !e.ctrlKey && selectedCells.size > 0) {
+                    const k = {m:'M',a:'A',n:'N',l:'L',o:'O',g:'G'}[e.key.toLowerCase()];
+                    if (k) applyRosterShift(k);
+                }
+                return;
+            }
+            const cells = getRosterCells();
+            if (!cells.length) return;
+            if (e.key === 'Escape') {
+                clearRosterSelection(); setRosterFocus(null); lastClickedCell = null;
+                e.preventDefault(); return;
+            }
+            if (!focusedCell) {
+                const first = cells[0];
+                lastClickedCell = first; toggleCell(first, e); setRosterFocus(first);
+                e.preventDefault(); return;
+            }
+            const idx = cells.indexOf(focusedCell);
+            if (idx === -1) return;
+            if (e.key === 'Enter' || e.key === ' ') {
+                toggleCell(focusedCell, e);
+                if (!e.shiftKey) lastClickedCell = focusedCell;
+                e.preventDefault(); return;
+            }
+            const numCols = getNumCols();
+            let nextIdx = idx;
+            if (e.key === 'ArrowRight') nextIdx = idx + 1;
+            else if (e.key === 'ArrowLeft')  nextIdx = idx - 1;
+            else if (e.key === 'ArrowDown')  nextIdx = idx + numCols;
+            else if (e.key === 'ArrowUp')    nextIdx = idx - numCols;
+            if (nextIdx < 0 || nextIdx >= cells.length) { e.preventDefault(); return; }
+            e.preventDefault();
+            const nextCell = cells[nextIdx];
+            if (e.shiftKey) {
+                rosterSelectRange(lastClickedCell, nextCell);
+                setRosterFocus(nextCell);
+            } else {
+                clearRosterSelection();
+                lastClickedCell = nextCell;
+                const nk = `${nextCell.dataset.employeeId}|${nextCell.dataset.date}`;
+                selectedCells.set(nk, {employee_id: parseInt(nextCell.dataset.employeeId), date: nextCell.dataset.date, el: nextCell});
+                nextCell.classList.add('cell-selected');
+                document.getElementById('sel-count').textContent = '1 cell(s) selected';
+                setRosterFocus(nextCell);
+            }
+        });
 
         function applyRosterShift(shiftType) {
             if (selectedCells.size === 0) {
@@ -194,6 +363,7 @@
                     });
                     selectedCells.clear();
                     document.getElementById('sel-count').textContent = '';
+                    saveShiftState();
                 }
             })
             .catch(() => showNotification('Error updating shifts.', 'error'));
@@ -233,52 +403,6 @@
         }
         function closeConfirm() {
             document.getElementById('confirm-modal').classList.remove('open');
-        }
-        let history = [new Set()]; 
-        let historyIndex = 0;
-
-        function saveState() {
-            // Convert current selection to a sorted array to compare
-            const currentArray = [...selectedCells.keys()].sort();
-            const lastArray = [...history[historyIndex]].sort();
-            
-            if (JSON.stringify(currentArray) === JSON.stringify(lastArray)) return;
-
-            history = history.slice(0, historyIndex + 1);
-            history.push(new Set(selectedCells.keys()));
-            historyIndex++;
-        }
-
-        function undo() {
-            if (historyIndex > 0) {
-                historyIndex--;
-                applyHistoryState(history[historyIndex]);
-            }
-        }
-
-        function redo() {
-            if (historyIndex < history.length - 1) {
-                historyIndex++;
-                applyHistoryState(history[historyIndex]);
-            }
-        }
-
-        function applyHistoryState(stateSet) {
-            // 1. Clear current UI
-            selectedCells.forEach(c => c.el.classList.remove('cell-selected'));
-            selectedCells.clear();
-            
-            // 2. Restore from state
-            stateSet.forEach(key => {
-                const [empId, date] = key.split('|');
-                const el = document.querySelector(`[data-employee-id="${empId}"][data-date="${date}"]`);
-                if (el) {
-                    selectedCells.set(key, {employee_id: parseInt(empId), date: date, el: el});
-                    el.classList.add('cell-selected');
-                }
-            });
-            // Update count label
-            document.getElementById('sel-count').textContent = selectedCells.size > 0 ? `${selectedCells.size} cell(s) selected` : '';
         }
         let _hideTimer = null;
         function showEmpPopup(e, el) {
