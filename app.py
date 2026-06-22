@@ -147,7 +147,7 @@ def validate_shift(employee_id, date, shift_type):
 def generate_roster_image(employees, dates, schedule_data, title, team_name='', period_label=''):
     """Generate a PNG image of the roster table for emailing."""
 
-    col_w    = 72 if len(dates) <= 7 else 52
+    col_w    = 52
     row_h    = 70
     date_h   = 90
     wk_h     = 55
