@@ -414,7 +414,7 @@ def send_roster_email(employee, image_bytes, subject, body_text, team_name='', p
 
       <!-- Roster image -->
       <div style="overflow-x:auto;border:1px solid #ddd;border-radius:6px;">
-        <img src="cid:roster_image" alt="Roster" style="display:block;width:80%;height:auto;margin:0 auto;">
+        <img src="cid:roster_image" alt="Roster" style="display:block;max-width:100%;width:auto;height:auto;margin:0 auto;">
       </div>
 
       <!-- Details below the image -->
