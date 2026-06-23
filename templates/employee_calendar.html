@@ -587,6 +587,7 @@
         document.addEventListener('keydown', function(e) {
             if (!isAdmin) return;
             if (document.getElementById('picker-overlay').classList.contains('open')) return;
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
 
             // Shift hotkeys: M A N L O G apply to selection
             if (!e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && selectedDates.size > 0) {
