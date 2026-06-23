@@ -437,30 +437,28 @@
             </div>
             {% endif %}
 
-<!-- Monthly Calendar Grid Wrapper -->
-            <div class="screenshot-capture-area">
-                <div class="calendar-grid" style="width: 100%;">
-                    <div class="day-header">MON</div>
-                    <div class="day-header">TUE</div>
-                    <div class="day-header">WED</div>
-                    <div class="day-header">THU</div>
-                    <div class="day-header">FRI</div>
-                    <div class="day-header day-weekend">SAT</div>
-                    <div class="day-header day-weekend">SUN</div>
+            <!-- Monthly Calendar Grid -->
+            <div class="calendar-grid">
+                <div class="day-header">MON</div>
+                <div class="day-header">TUE</div>
+                <div class="day-header">WED</div>
+                <div class="day-header">THU</div>
+                <div class="day-header">FRI</div>
+                <div class="day-header day-weekend">SAT</div>
+                <div class="day-header day-weekend">SUN</div>
 
-                    {% for date in calendar_dates %}
-                        {% set shift_type = schedule_data.get(date.strftime('%Y-%m-%d'), '') %}
-                        <div class="calendar-day {% if date.month != current_date.month %}other-month{% endif %} {% if shift_type %}cell-shift-{{ shift_type }}{% endif %} {% if is_admin and date.month == current_date.month %}selectable{% endif %}"
-                            data-date="{{ date.strftime('%Y-%m-%d') }}"
-                            onmousedown="startSelection(this, event)"
-                            onmouseover="handleMouseOver(this)">
-                            <div class="day-number">{{ date.day }}</div>
-                            {% if shift_type %}
-                                <div class="cell-shift-label">{{ shift_type }}</div>
-                            {% endif %}
-                        </div>
-                    {% endfor %}
-                </div>
+                {% for date in calendar_dates %}
+                    {% set shift_type = schedule_data.get(date.strftime('%Y-%m-%d'), '') %}
+                    <div class="calendar-day {% if date.month != current_date.month %}other-month{% endif %} {% if shift_type %}cell-shift-{{ shift_type }}{% endif %} {% if is_admin and date.month == current_date.month %}selectable{% endif %}"
+                        data-date="{{ date.strftime('%Y-%m-%d') }}"
+                        onmousedown="startSelection(this, event)"
+                        onmouseover="handleMouseOver(this)">
+                        <div class="day-number">{{ date.day }}</div>
+                        {% if shift_type %}
+                            <div class="cell-shift-label">{{ shift_type }}</div>
+                        {% endif %}
+                    </div>
+                {% endfor %}
             </div>
 
             <!-- Legend -->
