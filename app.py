@@ -398,7 +398,7 @@ def send_roster_email(employee, image_bytes, subject, body_text, team_name='', p
     html = f"""
 <html>
 <body style="margin:0;padding:0;background:#f0f2f5;font-family:Arial,sans-serif;">
-  <div style="max-width:960px;margin:20px auto;background:#fff;border-radius:10px;
+  <div style="max-width:1400px;margin:20px auto;background:#fff;border-radius:10px;
               overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.12);">
 
     <!-- Header bar -->
@@ -414,7 +414,7 @@ def send_roster_email(employee, image_bytes, subject, body_text, team_name='', p
 
       <!-- Roster image -->
       <div style="overflow-x:auto;border:1px solid #ddd;border-radius:6px;">
-        <img src="cid:roster_image" alt="Roster" style="display:block;width:380px;height:auto;margin:0 auto;">
+        <img src="cid:roster_image" alt="Roster" style="display:block;width:100%;max-width:100%;height:auto;margin:0 auto;">
       </div>
 
       <!-- Details below the image -->
