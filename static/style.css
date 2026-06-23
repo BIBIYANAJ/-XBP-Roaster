@@ -847,3 +847,19 @@ main {
 .cell-shift-label {
     pointer-events: none; 
 }
+/* Tight wrapper to eliminate left/right white space in screenshot captures */
+.screenshot-capture-area {
+    display: inline-block;
+    width: max-content;
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
+    background-color: #ffffff;
+    box-sizing: border-box;
+}
+
+/* Ensure child tables and grids do not add outer margin overrides */
+.screenshot-capture-area .roster-table,
+.screenshot-capture-area .calendar-grid {
+    margin: 0 !important;
+}

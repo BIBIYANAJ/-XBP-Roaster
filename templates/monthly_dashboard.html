@@ -47,33 +47,35 @@
             <button class="shift-button shift-O" data-shift="O">OFF</button>
         </div>
 
-        <!-- Monthly Calendar Grid (Constraint 2) -->
-        <div class="calendar-grid">
-            <div class="day-header">MON</div>
-            <div class="day-header">TUE</div>
-            <div class="day-header">WED</div>
-            <div class="day-header">THU</div>
-            <div class="day-header">FRI</div>
-            <div class="day-header day-weekend">SAT</div>
-            <div class="day-header day-weekend">SUN</div>
+<!-- Monthly Calendar Grid Wrapper -->
+        <div class="screenshot-capture-area">
+            <div class="calendar-grid" style="width: 100%;">
+                <div class="day-header">MON</div>
+                <div class="day-header">TUE</div>
+                <div class="day-header">WED</div>
+                <div class="day-header">THU</div>
+                <div class="day-header">FRI</div>
+                <div class="day-header day-weekend">SAT</div>
+                <div class="day-header day-weekend">SUN</div>
 
-            {% for date in calendar_dates %}
-                {% set shifts_on_day = schedule_data.get(date.strftime('%Y-%m-%d'), {}) %}
-                <div class="calendar-day {% if date.month != current_date.month %}other-month{% endif %}"
-                     data-date="{{ date.strftime('%Y-%m-%d') }}"
-                     onclick="handleDayClick(this)"> <!-- Updated function call -->
-                    <div class="day-number">{{ date.day }}</div>
-                    <div class="day-shift-summary">
-                        {% for employee_id, shift_type in shifts_on_day.items() %}
-                            {% for emp in employees %}
-                                {% if emp.id == employee_id %}
-                                    <span class="shift-{{ shift_type }}">{{ emp.name.split(' ')[0] }} ({{ shift_type }})</span>
-                                {% endif %}
+                {% for date in calendar_dates %}
+                    {% set shifts_on_day = schedule_data.get(date.strftime('%Y-%m-%d'), {}) %}
+                    <div class="calendar-day {% if date.month != current_date.month %}other-month{% endif %}"
+                         data-date="{{ date.strftime('%Y-%m-%d') }}"
+                         onclick="handleDayClick(this)">
+                        <div class="day-number">{{ date.day }}</div>
+                        <div class="day-shift-summary">
+                            {% for employee_id, shift_type in shifts_on_day.items() %}
+                                {% for emp in employees %}
+                                    {% if emp.id == employee_id %}
+                                        <span class="shift-{{ shift_type }}">{{ emp.name.split(' ')[0] }} ({{ shift_type }})</span>
+                                    {% endif %}
+                                {% endfor %}
                             {% endfor %}
-                        {% endfor %}
+                        </div>
                     </div>
-                </div>
-            {% endfor %}
+                {% endfor %}
+            </div>
         </div>
         {% else %}
         <p>Please select a team to view the schedule.</p>
