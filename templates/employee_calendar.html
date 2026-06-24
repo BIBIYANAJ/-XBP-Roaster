@@ -436,39 +436,39 @@
                 </div>
             </div>
             {% endif %}
+            
             <!-- ── Shift Stats Bar ──────────────────────────────────────── -->
-            <div id="shift-stats-bar" style="display:flex;gap:6px;flex-wrap:nowrap;overflow-x:auto;margin-bottom:12px;padding:10px 14px;background:#fff;border:1px solid #d0d7de;border-radius:10px;box-shadow:0 1px 4px rgba(31,35,40,0.06);align-items:center;">
-                <span style="font-size:0.78em;font-weight:700;color:#656d76;white-space:nowrap;margin-right:4px;">This month:</span>
-                <div class="stat-pill" id="stat-M" style="display:flex;align-items:center;gap:0;border-radius:6px;overflow:hidden;flex-shrink:0;">
-                    <span style="background:#d4a72c;color:#fff;font-size:0.75em;font-weight:700;padding:5px 8px;">M</span>
-                    <span style="background:#fdf6e3;color:#7a5c10;font-size:0.75em;font-weight:700;padding:5px 8px;border:1px solid #d4a72c;border-left:none;" id="cnt-M">0</span>
+            <div id="shift-stats-bar" style="display:flex;gap:8px;flex-wrap:nowrap;overflow-x:auto;margin-bottom:12px;padding:12px 16px;background:#fff;border:1px solid #d0d7de;border-radius:10px;box-shadow:0 1px 4px rgba(31,35,40,0.06);align-items:center;">
+                <span style="font-size:0.85em;font-weight:700;color:#656d76;white-space:nowrap;margin-right:4px;">This month:</span>
+                <div style="display:flex;align-items:center;gap:0;border-radius:6px;overflow:hidden;flex-shrink:0;">
+                    <span style="background:#d4a72c;color:#fff;font-size:0.82em;font-weight:700;padding:6px 10px;">M</span>
+                    <span style="background:#fdf6e3;color:#7a5c10;font-size:0.82em;font-weight:700;padding:6px 10px;border:1px solid #d4a72c;border-left:none;" id="cnt-M">0</span>
                 </div>
-                <div class="stat-pill" id="stat-A" style="display:flex;align-items:center;gap:0;border-radius:6px;overflow:hidden;flex-shrink:0;">
-                    <span style="background:#d15704;color:#fff;font-size:0.75em;font-weight:700;padding:5px 8px;">A</span>
-                    <span style="background:#fff4ee;color:#7a3002;font-size:0.75em;font-weight:700;padding:5px 8px;border:1px solid #d15704;border-left:none;" id="cnt-A">0</span>
+                <div style="display:flex;align-items:center;gap:0;border-radius:6px;overflow:hidden;flex-shrink:0;">
+                    <span style="background:#d15704;color:#fff;font-size:0.82em;font-weight:700;padding:6px 10px;">A</span>
+                    <span style="background:#fff4ee;color:#7a3002;font-size:0.82em;font-weight:700;padding:6px 10px;border:1px solid #d15704;border-left:none;" id="cnt-A">0</span>
                 </div>
-                <div class="stat-pill" id="stat-N" style="display:flex;align-items:center;gap:0;border-radius:6px;overflow:hidden;flex-shrink:0;">
-                    <span style="background:#1f6feb;color:#fff;font-size:0.75em;font-weight:700;padding:5px 8px;">N</span>
-                    <span style="background:#eef4ff;color:#0c3d8a;font-size:0.75em;font-weight:700;padding:5px 8px;border:1px solid #1f6feb;border-left:none;" id="cnt-N">0</span>
+                <div style="display:flex;align-items:center;gap:0;border-radius:6px;overflow:hidden;flex-shrink:0;">
+                    <span style="background:#1f6feb;color:#fff;font-size:0.82em;font-weight:700;padding:6px 10px;">N</span>
+                    <span style="background:#eef4ff;color:#0c3d8a;font-size:0.82em;font-weight:700;padding:6px 10px;border:1px solid #1f6feb;border-left:none;" id="cnt-N">0</span>
                 </div>
-                <div class="stat-pill" id="stat-O" style="display:flex;align-items:center;gap:0;border-radius:6px;overflow:hidden;flex-shrink:0;">
-                    <span style="background:#1a7f37;color:#fff;font-size:0.75em;font-weight:700;padding:5px 8px;">O</span>
-                    <span style="background:#eafbee;color:#0e4d21;font-size:0.75em;font-weight:700;padding:5px 8px;border:1px solid #1a7f37;border-left:none;" id="cnt-O">0</span>
+                <div style="display:flex;align-items:center;gap:0;border-radius:6px;overflow:hidden;flex-shrink:0;">
+                    <span style="background:#1a7f37;color:#fff;font-size:0.82em;font-weight:700;padding:6px 10px;">O</span>
+                    <span style="background:#eafbee;color:#0e4d21;font-size:0.82em;font-weight:700;padding:6px 10px;border:1px solid #1a7f37;border-left:none;" id="cnt-O">0</span>
                 </div>
-                <div class="stat-pill" id="stat-L" style="display:flex;align-items:center;gap:0;border-radius:6px;overflow:hidden;flex-shrink:0;">
-                    <span style="background:#cf222e;color:#fff;font-size:0.75em;font-weight:700;padding:5px 8px;">L</span>
-                    <span style="background:#fff0f0;color:#7a1219;font-size:0.75em;font-weight:700;padding:5px 8px;border:1px solid #cf222e;border-left:none;" id="cnt-L">0</span>
+                <div style="display:flex;align-items:center;gap:0;border-radius:6px;overflow:hidden;flex-shrink:0;">
+                    <span style="background:#cf222e;color:#fff;font-size:0.82em;font-weight:700;padding:6px 10px;">L</span>
+                    <span style="background:#fff0f0;color:#7a1219;font-size:0.82em;font-weight:700;padding:6px 10px;border:1px solid #cf222e;border-left:none;" id="cnt-L">0</span>
                 </div>
-                <div class="stat-pill" id="stat-G" style="display:flex;align-items:center;gap:0;border-radius:6px;overflow:hidden;flex-shrink:0;">
-                    <span style="background:#8250df;color:#fff;font-size:0.75em;font-weight:700;padding:5px 8px;">G</span>
-                    <span style="background:#f5f0ff;color:#4a2a8a;font-size:0.75em;font-weight:700;padding:5px 8px;border:1px solid #8250df;border-left:none;" id="cnt-G">0</span>
+                <div style="display:flex;align-items:center;gap:0;border-radius:6px;overflow:hidden;flex-shrink:0;">
+                    <span style="background:#8250df;color:#fff;font-size:0.82em;font-weight:700;padding:6px 10px;">G</span>
+                    <span style="background:#f5f0ff;color:#4a2a8a;font-size:0.82em;font-weight:700;padding:6px 10px;border:1px solid #8250df;border-left:none;" id="cnt-G">0</span>
                 </div>
-                <div style="margin-left:auto;display:flex;align-items:center;gap:4px;flex-shrink:0;">
-                    <span style="font-size:0.75em;color:#656d76;font-weight:600;">Total assigned:</span>
-                    <span id="cnt-total" style="font-size:0.75em;font-weight:700;color:#1f2328;background:#f6f8fa;border:1px solid #d0d7de;border-radius:6px;padding:5px 10px;">0</span>
+                <div style="margin-left:auto;display:flex;align-items:center;gap:6px;flex-shrink:0;">
+                    <span style="font-size:0.82em;color:#656d76;font-weight:600;">Total assigned:</span>
+                    <span id="cnt-total" style="font-size:0.82em;font-weight:700;color:#1f2328;background:#f6f8fa;border:1px solid #d0d7de;border-radius:6px;padding:6px 12px;">0</span>
                 </div>
             </div>
-
             <!-- Monthly Calendar Grid -->
             <div class="calendar-grid">
                 <div class="day-header">MON</div>

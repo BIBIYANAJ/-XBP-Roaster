@@ -198,12 +198,12 @@ main {
 .day-header {
     text-align: center;
     font-weight: 600;
-    padding: 10px;
+    padding: 6px;
     background-color: #f6f8fa;
     border: 1px solid #d0d7de;
     color: #656d76;
     border-radius: 4px;
-    font-size: 0.85em;
+    font-size: 0.78em;
 }
 
 .day-weekend {
@@ -211,8 +211,8 @@ main {
 }
 
 .calendar-day {
-    min-height: 80px;
-    padding: 8px;
+    min-height: 55px;  /* was 80px */
+    padding: 5px; 
     border: 1px solid #d0d7de;
     position: relative;
     cursor: pointer;
@@ -240,9 +240,9 @@ main {
 
 .day-number {
     font-weight: 600;
-    font-size: 0.95em;
+    font-size: 0.78em;  /* was 0.95em */
     color: #1f2328;
-    margin-bottom: 6px;
+    margin-bottom: 3px; /* was 6px */
 }
 
 .day-shift-summary {
@@ -287,7 +287,7 @@ main {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-size: 2em;
+    font-size: 1.4em;  /* was 2em */
     font-weight: 800;
     color: rgba(255,255,255,0.95);
     line-height: 1;
@@ -846,20 +846,4 @@ main {
 
 .cell-shift-label {
     pointer-events: none; 
-}
-/* Tight wrapper to eliminate left/right white space in screenshot captures */
-.screenshot-capture-area {
-    display: inline-block;
-    width: max-content;
-    max-width: 100%;
-    margin: 0;
-    padding: 0;
-    background-color: #ffffff;
-    box-sizing: border-box;
-}
-
-/* Ensure child tables and grids do not add outer margin overrides */
-.screenshot-capture-area .roster-table,
-.screenshot-capture-area .calendar-grid {
-    margin: 0 !important;
 }
