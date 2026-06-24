@@ -74,12 +74,12 @@ main {
 }
 
 /* --- Shift color coding --- */
-.shift-M { background-color: #d4a72c; color: #ffffff; }
-.shift-A { background-color: #d15704; color: #ffffff; }
-.shift-N { background-color: #1f6feb; color: #ffffff; }
-.shift-O { background-color: #1a7f37; color: #ffffff; }
-.shift-L { background-color: #cf222e; color: #ffffff; }
-.shift-G { background-color: #8250df; color: #ffffff; }
+.shift-M { background-color: #fef9e7; color: #b8891a; }
+.shift-A { background-color: #fff4ee; color: #a84403; }
+.shift-N { background-color: #eef4ff; color: #1558c0; }
+.shift-O { background-color: #eafbee; color: #14622b; }
+.shift-L { background-color: #fff0f0; color: #a01b24; }
+.shift-G { background-color: #f5f0ff; color: #6639ba; }
 
 .shift-label {
     padding: 4px 8px;
@@ -260,39 +260,37 @@ main {
     font-weight: 600;
 }
 
-/* --- Full-cell shift coloring (employee calendar) --- */
-.calendar-day.cell-shift-M { background-color: #d4a72c; border-color: #b8891a; }
-.calendar-day.cell-shift-A { background-color: #d15704; border-color: #a84403; }
-.calendar-day.cell-shift-N { background-color: #1f6feb; border-color: #1558c0; }
-.calendar-day.cell-shift-O { background-color: #1a7f37; border-color: #14622b; }
-.calendar-day.cell-shift-L { background-color: #cf222e; border-color: #a01b24; }
-.calendar-day.cell-shift-G { background-color: #8250df; border-color: #6639ba; }
-
+/* ── Full-cell shift coloring (employee calendar) ── */
+.calendar-day.cell-shift-M { background-color: #fef9e7; border-color: #d4a72c; }
+.calendar-day.cell-shift-A { background-color: #fff4ee; border-color: #d15704; }
+.calendar-day.cell-shift-N { background-color: #eef4ff; border-color: #1f6feb; }
+.calendar-day.cell-shift-O { background-color: #eafbee; border-color: #1a7f37; }
+.calendar-day.cell-shift-L { background-color: #fff0f0; border-color: #cf222e; }
+.calendar-day.cell-shift-G { background-color: #f5f0ff; border-color: #8250df; }
 .calendar-day.cell-shift-M .day-number,
 .calendar-day.cell-shift-A .day-number,
 .calendar-day.cell-shift-N .day-number,
 .calendar-day.cell-shift-O .day-number,
 .calendar-day.cell-shift-L .day-number,
-.calendar-day.cell-shift-G .day-number { color: #ffffff; }
+.calendar-day.cell-shift-G .day-number { color: #1f2328; }
 
-.calendar-day.cell-shift-M:hover { background-color: #c0a355; }
-.calendar-day.cell-shift-A:hover { background-color: #b84a03; }
-.calendar-day.cell-shift-N:hover { background-color: #1558c0; }
-.calendar-day.cell-shift-O:hover { background-color: #14622b; }
-.calendar-day.cell-shift-L:hover { background-color: #a01b24; }
-.calendar-day.cell-shift-G:hover { background-color: #6639ba; }
+.calendar-day.cell-shift-M:hover { background-color: #fdf0c0; }
+.calendar-day.cell-shift-A:hover { background-color: #ffe5d0; }
+.calendar-day.cell-shift-N:hover { background-color: #dceeff; }
+.calendar-day.cell-shift-O:hover { background-color: #d4f5dc; }
+.calendar-day.cell-shift-L:hover { background-color: #ffd9d9; }
+.calendar-day.cell-shift-G:hover { background-color: #ede0ff; }
 
 .cell-shift-label {
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-size: 1.4em;  /* was 2em */
+    font-size: 1.4em;
     font-weight: 800;
-    color: rgba(255,255,255,0.95);
+    color: inherit;
     line-height: 1;
     letter-spacing: 1px;
-    text-shadow: 0 1px 4px rgba(0,0,0,0.2);
 }
 
 .other-month {
@@ -631,22 +629,22 @@ main {
 
 /* ── Shift colors inside roster table (must beat td white bg) ── */
 .mini-style .mini-cell.shift-M,
-.mini-style td.shift-M { background-color: #d4a72c !important; color: #fff !important; font-weight: 800; font-size: 16px; letter-spacing: 0.5px; }
+.mini-style td.shift-M { background-color: #fef9e7 !important; color: #b8891a !important; font-weight: 800; font-size: 16px; }
 
 .mini-style .mini-cell.shift-A,
-.mini-style td.shift-A { background-color: #d15704 !important; color: #fff !important; font-weight: 800; font-size: 16px; letter-spacing: 0.5px; }
+.mini-style td.shift-A { background-color: #fff4ee !important; color: #a84403 !important; font-weight: 800; font-size: 16px; }
 
 .mini-style .mini-cell.shift-N,
-.mini-style td.shift-N { background-color: #1f6feb !important; color: #fff !important; font-weight: 800; font-size: 16px; letter-spacing: 0.5px; }
+.mini-style td.shift-N { background-color: #eef4ff !important; color: #1558c0 !important; font-weight: 800; font-size: 16px; }
 
 .mini-style .mini-cell.shift-L,
-.mini-style td.shift-L { background-color: #cf222e !important; color: #fff !important; font-weight: 800; font-size: 16px; letter-spacing: 0.5px; }
+.mini-style td.shift-L { background-color: #fff0f0 !important; color: #a01b24 !important; font-weight: 800; font-size: 16px; }
 
 .mini-style .mini-cell.shift-O,
-.mini-style td.shift-O { background-color: #1a7f37 !important; color: #fff !important; font-weight: 800; font-size: 16px; letter-spacing: 0.5px; }
+.mini-style td.shift-O { background-color: #eafbee !important; color: #14622b !important; font-weight: 800; font-size: 16px; }
 
 .mini-style .mini-cell.shift-G,
-.mini-style td.shift-G { background-color: #8250df !important; color: #fff !important; font-weight: 800; font-size: 16px; letter-spacing: 0.5px; }
+.mini-style td.shift-G { background-color: #f5f0ff !important; color: #6639ba !important; font-weight: 800; font-size: 16px; }
 
 /* ── Clickable employee name cells ─────────────────────────── */
 .emp-name-clickable {
@@ -669,12 +667,13 @@ main {
     background-color: #fde8e8 !important;
 }
 
-.mini-style td.weekend-td.shift-M { background-color: #d4a72c !important; }
-.mini-style td.weekend-td.shift-A { background-color: #d15704 !important; }
-.mini-style td.weekend-td.shift-N { background-color: #1f6feb !important; }
-.mini-style td.weekend-td.shift-L { background-color: #cf222e !important; }
-.mini-style td.weekend-td.shift-O { background-color: #1a7f37 !important; }
-.mini-style td.weekend-td.shift-G { background-color: #8250df !important; }
+.mini-style td.weekend-td { background-color: #fde8e8 !important; }
+.mini-style td.weekend-td.shift-M { background-color: #fef9e7 !important; color: #b8891a !important; }
+.mini-style td.weekend-td.shift-A { background-color: #fff4ee !important; color: #a84403 !important; }
+.mini-style td.weekend-td.shift-N { background-color: #eef4ff !important; color: #1558c0 !important; }
+.mini-style td.weekend-td.shift-L { background-color: #fff0f0 !important; color: #a01b24 !important; }
+.mini-style td.weekend-td.shift-O { background-color: #eafbee !important; color: #14622b !important; }
+.mini-style td.weekend-td.shift-G { background-color: #f5f0ff !important; color: #6639ba !important; }
 
 /* Roster shift selector bar */
 .roster-shift-bar {

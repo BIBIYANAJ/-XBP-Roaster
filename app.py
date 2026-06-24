@@ -157,24 +157,23 @@ def generate_roster_image(employees, dates, schedule_data, title, team_name='', 
     legend_h = 60
 
     SHIFT_COLORS = {
-        'M': (255, 215, 0),
-        'A': (255, 152, 0),
-        'N': (26, 35, 126),
-        'O': (76, 175, 80),
-        'L': (244, 67, 54),
-        'G': (103, 58, 183),
+        'M': (254, 249, 231),   # pastel yellow
+        'A': (255, 244, 238),   # pastel orange
+        'N': (238, 244, 255),   # pastel blue
+        'O': (234, 251, 238),   # pastel green
+        'L': (255, 240, 240),   # pastel red
+        'G': (245, 240, 255),   # pastel purple
         '':  (255, 255, 255),
     }
     SHIFT_TEXT_COLORS = {
-        'M': (30, 30, 30),
-        'A': (255, 255, 255),
-        'N': (255, 255, 255),
-        'O': (255, 255, 255),
-        'L': (255, 255, 255),
-        'G': (255, 255, 255),
+        'M': (184, 137, 26),    # dark gold
+        'A': (168, 68, 3),      # dark orange
+        'N': (21, 88, 192),     # dark blue
+        'O': (20, 98, 43),      # dark green
+        'L': (160, 27, 36),     # dark red
+        'G': (102, 57, 186),    # dark purple
         '':  (200, 200, 200),
-    }
-
+}
     total_cols_w = col_w * len(dates)
     width  = padding + name_w + total_cols_w + padding
     height = header_h + wk_h + date_h + row_h * len(employees) + legend_h + padding * 2
@@ -337,12 +336,12 @@ def generate_roster_image(employees, dates, schedule_data, title, team_name='', 
     # ── Legend footer ──────────────────────────────────────────────
     y_legend = y_data + row_h * len(employees) + padding
     legend_items = [
-        ('M', (255, 215, 0),   (30, 30, 30),   'Morning'),
-        ('A', (255, 152, 0),   (255, 255, 255), 'Afternoon'),
-        ('N', (26, 35, 126),   (255, 255, 255), 'Night'),
-        ('L', (244, 67, 54),   (255, 255, 255), 'Leave'),
-        ('O', (76, 175, 80),   (255, 255, 255), 'OFF'),
-        ('G', (103, 58, 183),  (255, 255, 255), 'General'),
+        ('M', (254, 249, 231), (184, 137, 26),  'Morning'),
+        ('A', (255, 244, 238), (168, 68, 3),    'Afternoon'),
+        ('N', (238, 244, 255), (21, 88, 192),   'Night'),
+        ('L', (255, 240, 240), (160, 27, 36),   'Leave'),
+        ('O', (234, 251, 238), (20, 98, 43),    'OFF'),
+        ('G', (245, 240, 255), (102, 57, 186),  'General'),
     ]
     lx = x_start
     box_size = 36
@@ -426,12 +425,12 @@ def send_roster_email(employee, image_bytes, subject, body_text, team_name='', p
       <!-- Legend -->
       <div style="margin-top:14px;font-size:0.82em;color:#555;">
         <strong>Shift Legend:</strong>&nbsp;
-        <span style="background:#ffd700;color:#333;padding:2px 8px;border-radius:3px;margin:0 2px;">M – Morning</span>
-        <span style="background:#ff9800;color:#fff;padding:2px 8px;border-radius:3px;margin:0 2px;">A – Afternoon</span>
-        <span style="background:#1a237e;color:#fff;padding:2px 8px;border-radius:3px;margin:0 2px;">N – Night</span>
-        <span style="background:#f44336;color:#fff;padding:2px 8px;border-radius:3px;margin:0 2px;">L – Leave</span>
-        <span style="background:#4caf50;color:#fff;padding:2px 8px;border-radius:3px;margin:0 2px;">O – OFF</span>
-        <span style="background:#673ab7;color:#fff;padding:2px 8px;border-radius:3px;margin:0 2px;">G – General/span>
+        <span style="background:#fef9e7;color:#b8891a;padding:2px 8px;border-radius:3px;margin:0 2px;border:1px solid #d4a72c;">M – Morning</span>
+        <span style="background:#fff4ee;color:#a84403;padding:2px 8px;border-radius:3px;margin:0 2px;border:1px solid #d15704;">A – Afternoon</span>
+        <span style="background:#eef4ff;color:#1558c0;padding:2px 8px;border-radius:3px;margin:0 2px;border:1px solid #1f6feb;">N – Night</span>
+        <span style="background:#fff0f0;color:#a01b24;padding:2px 8px;border-radius:3px;margin:0 2px;border:1px solid #cf222e;">L – Leave</span>
+        <span style="background:#eafbee;color:#14622b;padding:2px 8px;border-radius:3px;margin:0 2px;border:1px solid #1a7f37;">O – OFF</span>
+        <span style="background:#f5f0ff;color:#6639ba;padding:2px 8px;border-radius:3px;margin:0 2px;border:1px solid #8250df;">G – General</span>
       </div>
 
       <p style="margin-top:20px;margin-bottom:0;color:#888;font-size:0.82em;">
